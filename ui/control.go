@@ -14,22 +14,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k == "q" || k == "esc" || k == "ctrl+c" {
 			return m, tea.Quit
 		}
-
-		if k == "m" {
-			return Model{currentPage: Main, session: nil}, nil
-		}
 	}
 
-	// if m.session == nil {
-	// 	ch := make(chan *s3.SessionResponse)
-	// 	go s3.GetSession(ch)
-	// 	resp := <-ch
-	// 	if resp.Err != nil {
-	// 		return Model{currentPage: Creds, session: nil}, nil
-	// 	}
-	// }
-
-	return m, nil
+	switch m.currentPage {
+	case Main:
+		return m.GetMainUpdate(msg)
+	default:
+		return m.GetCredsUpdate(msg)
+	}
 }
 
 func (m Model) View() string {

@@ -16,6 +16,7 @@ const (
 type Model struct {
 	currentPage CurrentPage
 	session     *session.Session
+	creds       CredsModel
 }
 
 func InitialModel() Model {
