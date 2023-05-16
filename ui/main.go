@@ -2,6 +2,10 @@ package ui
 
 import tea "github.com/charmbracelet/bubbletea"
 
+func (m *Model) MainInit() tea.Cmd {
+	return nil
+}
+
 func (m *Model) GetMainUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }

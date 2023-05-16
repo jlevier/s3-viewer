@@ -5,7 +5,12 @@ import (
 )
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	switch m.currentPage {
+	case Main:
+		return m.MainInit()
+	default:
+		return m.CredsInit()
+	}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
