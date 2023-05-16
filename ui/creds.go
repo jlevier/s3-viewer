@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 var (
@@ -17,8 +19,26 @@ var (
 	helpStyle           = blurredStyle.Copy()
 	cursorModeHelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 
-	focusedButton = focusedStyle.Copy().Render("[ Submit ]")
-	blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
+	dialogBoxStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#874BFD")).
+			Padding(1, 0).
+			BorderTop(true).
+			BorderLeft(true).
+			BorderRight(true).
+			BorderBottom(true)
+
+	buttonStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFF7DB")).
+			Background(lipgloss.Color("#888B7E")).
+			Padding(0, 3).
+			MarginTop(1)
+
+	activeButtonStyle = buttonStyle.Copy().
+				Foreground(lipgloss.Color("#FFF7DB")).
+				Background(lipgloss.Color("#F25D94")).
+				MarginRight(2).
+				Underline(true)
 
 	viewModel = initialModel()
 )
@@ -80,7 +100,8 @@ func (m *Model) CredsInit() tea.Cmd {
 }
 
 func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyMsg); ok {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
 		k := msg.String()
 
 		switch k {
@@ -125,6 +146,9 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			return m, tea.Batch(cmds...)
 		}
+
+	case tea.WindowSizeMsg:
+		//fmt.Printf("height: %v width: %v\n", msg.Height, msg.Width)
 	}
 
 	cmd := viewModel.updateInputs(msg)
@@ -133,28 +157,46 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) GetCredsView() string {
-	// s := "Cached credentials not found.  Please enter"
-
-	// if m.creds.invalid {
-	// 	s += "\n You have entered invalid credentials!"
-	// }
-
-	// return s
-
 	var b strings.Builder
 
+	h1 := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render("Seems you don't have any cached credentials.")
+	h2 := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render("Enter your AWS key and secret.")
+	header := lipgloss.JoinVertical(lipgloss.Center, h1, h2)
+	fmt.Fprintf(&b, "%s\n\n", header)
+
 	for i := range viewModel.inputs {
+		// Provide padding on the front of the text boxes
+		b.WriteString(" ")
 		b.WriteString(viewModel.inputs[i].View())
 		if i < len(viewModel.inputs)-1 {
 			b.WriteRune('\n')
 		}
 	}
 
-	button := &blurredButton
+	button := buttonStyle.Render("Submit")
 	if viewModel.focusIndex == len(viewModel.inputs) {
-		button = &focusedButton
+		button = activeButtonStyle.Render("Submit")
 	}
-	fmt.Fprintf(&b, "\n\n%s\n\n", *button)
+	buttonAligned := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render(button)
+	fmt.Fprintf(&b, "\n\n%s\n\n", buttonAligned)
 
-	return b.String()
+	// Get terminal size and place dialog in the center
+	docStyle := lipgloss.NewStyle()
+	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
+
+	if width > 0 {
+		docStyle = docStyle.MaxWidth(width)
+	}
+	if height > 0 {
+		docStyle = docStyle.MaxHeight(height)
+	}
+
+	p := lipgloss.Place(
+		width, height,
+		lipgloss.Center, lipgloss.Center,
+		dialogBoxStyle.Render(b.String()),
+		lipgloss.WithWhitespaceChars("Ш#"),
+		lipgloss.WithWhitespaceForeground(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}))
+
+	return docStyle.Render(p)
 }
