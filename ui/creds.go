@@ -57,13 +57,9 @@ type credsModel struct {
 }
 
 func initialModel() credsModel {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-
 	m := credsModel{
 		inputs:  make([]textinput.Model, 2),
-		spinner: s,
+		spinner: getSpinner(),
 	}
 
 	var t textinput.Model

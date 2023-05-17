@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -14,7 +15,9 @@ var (
 )
 
 type bucketsModel struct {
-	buckets []*s3.Bucket
+	buckets   []*s3.Bucket
+	spinner   spinner.Model
+	isLoading bool
 }
 
 type getBucketsMsg struct {
@@ -23,19 +26,21 @@ type getBucketsMsg struct {
 }
 
 func (m *Model) BucketsInit() tea.Cmd {
-	bm = bucketsModel{}
+	bm = bucketsModel{spinner: getSpinner(), isLoading: true}
 
-	b, err := api.GetBuckets(m.session)
+	cmds := make([]tea.Cmd, 0)
+	cmds = append(cmds, bm.spinner.Tick)
 
-	if err != nil {
-		return func() tea.Msg {
+	cmds = append(cmds, func() tea.Msg {
+		b, err := api.GetBuckets(m.session)
+		bm.isLoading = false
+		if err != nil {
 			return getBucketsMsg{nil, err}
 		}
-	}
-
-	return func() tea.Msg {
 		return getBucketsMsg{b, nil}
-	}
+	})
+
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) GetBucketsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -48,10 +53,20 @@ func (m *Model) GetBucketsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		bm.buckets = msg.buckets
 	}
 
-	return m, nil
+	// Default commands
+	defaultCmds := make([]tea.Cmd, 0)
+	var sc tea.Cmd
+	bm.spinner, sc = bm.spinner.Update(msg)
+	defaultCmds = append(defaultCmds, sc)
+
+	return m, tea.Batch(defaultCmds...)
 }
 
 func (m *Model) GetBucketsView() string {
+	if bm.isLoading {
+		return getLoadingDialog("Loading Buckets", bm.spinner)
+	}
+
 	var b strings.Builder
 
 	if bm.buckets != nil {
