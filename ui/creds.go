@@ -3,8 +3,10 @@ package ui
 import (
 	"fmt"
 	"os"
+	"s3-viewer/s3"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -49,11 +51,6 @@ type model struct {
 	cursorMode textinput.CursorMode
 }
 
-// This is the model used for Bubbletea for use with the main app to pass tea.Model
-type CredsModel struct {
-	invalid bool
-}
-
 func initialModel() model {
 	m := model{
 		inputs: make([]textinput.Model, 2),
@@ -63,7 +60,7 @@ func initialModel() model {
 	for i := range m.inputs {
 		t = textinput.New()
 		t.CursorStyle = cursorStyle
-		t.CharLimit = 32
+		t.CharLimit = 50
 
 		switch i {
 		case 0:
@@ -95,6 +92,18 @@ func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
+type validateCredsMsg struct {
+	sess *session.Session
+	err  error
+}
+
+func validateCreds(key, secret string) tea.Cmd {
+	return func() tea.Msg {
+		sess, err := s3.GetSessionFromInput(key, secret)
+		return validateCredsMsg{sess, err}
+	}
+}
+
 func (m *Model) CredsInit() tea.Cmd {
 	return textinput.Blink
 }
@@ -105,15 +114,14 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		k := msg.String()
 
 		switch k {
-		case "m":
-			return Model{currentPage: Main, session: nil}, nil
 		case "tab", "shift+tab", "enter", "up", "down":
 			s := msg.String()
 
 			// Did the user press enter while the submit button was focused?
-			// If so, exit.
 			if s == "enter" && viewModel.focusIndex == len(viewModel.inputs) {
-				return m, tea.Quit
+				m.loadingMessage = "Validating..."
+				m.errorMessage = ""
+				return m, validateCreds(viewModel.inputs[0].Value(), viewModel.inputs[1].Value())
 			}
 
 			// Cycle indexes
@@ -133,7 +141,8 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := 0; i <= len(viewModel.inputs)-1; i++ {
 				if i == viewModel.focusIndex {
 					// Set focused state
-					cmds[i] = viewModel.inputs[i].Focus()
+					//cmds[i] = viewModel.inputs[i].Focus()
+					cmds = append(cmds, viewModel.inputs[i].Focus())
 					viewModel.inputs[i].PromptStyle = focusedStyle
 					viewModel.inputs[i].TextStyle = focusedStyle
 					continue
@@ -147,8 +156,15 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(cmds...)
 		}
 
-	case tea.WindowSizeMsg:
-		//fmt.Printf("height: %v width: %v\n", msg.Height, msg.Width)
+	case validateCredsMsg:
+		m.loadingMessage = ""
+		if msg.err != nil {
+			m.errorMessage = msg.err.Error()
+		} else {
+			m.currentPage = Main
+			m.session = msg.sess
+		}
+		return m, nil
 	}
 
 	cmd := viewModel.updateInputs(msg)
@@ -178,7 +194,15 @@ func (m *Model) GetCredsView() string {
 		button = activeButtonStyle.Render("Submit")
 	}
 	buttonAligned := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render(button)
-	fmt.Fprintf(&b, "\n\n%s\n\n", buttonAligned)
+	fmt.Fprintf(&b, "\n\n%s", buttonAligned)
+
+	if m.loadingMessage != "" {
+		fmt.Fprintf(&b, "\n\n%s", m.loadingMessage)
+	} else if m.errorMessage != "" {
+		fmt.Fprintf(&b, "\n\n%s", m.errorMessage)
+	} else {
+		b.WriteString("\n\n")
+	}
 
 	// Get terminal size and place dialog in the center
 	docStyle := lipgloss.NewStyle()
