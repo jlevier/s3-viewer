@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
-	"s3-viewer/s3"
+	"s3-viewer/api"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -109,7 +109,7 @@ type validateCredsMsg struct {
 
 func validateCreds(key, secret string) tea.Cmd {
 	return func() tea.Msg {
-		sess, err := s3.GetSessionFromInput(key, secret)
+		sess, err := api.GetSessionFromInput(key, secret)
 		return validateCredsMsg{sess, err}
 	}
 }
@@ -171,7 +171,7 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.errorMessage = fmt.Sprintf("\u274C %s", msg.err.Error())
 		} else {
-			m.currentPage = Main
+			m.currentPage = Buckets
 			m.session = msg.sess
 		}
 		return m, nil
