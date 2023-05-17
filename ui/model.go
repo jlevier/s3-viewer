@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"s3-viewer/s3"
+	"s3-viewer/api"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 )
@@ -9,8 +9,9 @@ import (
 type CurrentPage string
 
 const (
-	Creds CurrentPage = "creds"
-	Main              = "main"
+	Creds   CurrentPage = "creds"
+	Buckets             = "buckets"
+	Main                = "main"
 )
 
 type Model struct {
@@ -21,8 +22,8 @@ type Model struct {
 }
 
 func InitialModel() Model {
-	ch := make(chan *s3.SessionResponse)
-	go s3.GetSession(ch)
+	ch := make(chan *api.SessionResponse)
+	go api.GetSession(ch)
 	resp := <-ch
 
 	if resp.Err != nil {
@@ -33,7 +34,7 @@ func InitialModel() Model {
 	}
 
 	return Model{
-		currentPage: Main,
+		currentPage: Buckets,
 		session:     resp.Session,
 	}
 }

@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
-	"s3-viewer/s3"
+	"s3-viewer/api"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -46,24 +46,20 @@ var (
 				MarginRight(2).
 				Underline(true)
 
-	viewModel = initialModel()
+	cm = initialModel()
 )
 
-type model struct {
+type credsModel struct {
 	focusIndex int
 	inputs     []textinput.Model
 	cursorMode textinput.CursorMode
 	spinner    spinner.Model
 }
 
-func initialModel() model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-
-	m := model{
+func initialModel() credsModel {
+	m := credsModel{
 		inputs:  make([]textinput.Model, 2),
-		spinner: s,
+		spinner: getSpinner(),
 	}
 
 	var t textinput.Model
@@ -90,7 +86,7 @@ func initialModel() model {
 	return m
 }
 
-func (m *model) updateInputs(msg tea.Msg) tea.Cmd {
+func (m *credsModel) updateInputs(msg tea.Msg) tea.Cmd {
 	cmds := make([]tea.Cmd, len(m.inputs))
 
 	// Only text inputs with Focus() set will respond, so it's safe to simply
@@ -109,13 +105,13 @@ type validateCredsMsg struct {
 
 func validateCreds(key, secret string) tea.Cmd {
 	return func() tea.Msg {
-		sess, err := s3.GetSessionFromInput(key, secret)
+		sess, err := api.GetSessionFromInput(key, secret)
 		return validateCredsMsg{sess, err}
 	}
 }
 
 func (m *Model) CredsInit() tea.Cmd {
-	return tea.Batch(textinput.Blink, viewModel.spinner.Tick)
+	return tea.Batch(textinput.Blink, cm.spinner.Tick)
 }
 
 func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -128,39 +124,39 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s := msg.String()
 
 			// Did the user press enter while the submit button was focused?
-			if s == "enter" && viewModel.focusIndex == len(viewModel.inputs) {
+			if s == "enter" && cm.focusIndex == len(cm.inputs) {
 				m.loadingMessage = "Validating..."
 				m.errorMessage = ""
-				return m, validateCreds(viewModel.inputs[0].Value(), viewModel.inputs[1].Value())
+				return m, validateCreds(cm.inputs[0].Value(), cm.inputs[1].Value())
 			}
 
 			// Cycle indexes
 			if s == "up" || s == "shift+tab" {
-				viewModel.focusIndex--
+				cm.focusIndex--
 			} else {
-				viewModel.focusIndex++
+				cm.focusIndex++
 			}
 
-			if viewModel.focusIndex > len(viewModel.inputs) {
-				viewModel.focusIndex = 0
-			} else if viewModel.focusIndex < 0 {
-				viewModel.focusIndex = len(viewModel.inputs)
+			if cm.focusIndex > len(cm.inputs) {
+				cm.focusIndex = 0
+			} else if cm.focusIndex < 0 {
+				cm.focusIndex = len(cm.inputs)
 			}
 
-			cmds := make([]tea.Cmd, len(viewModel.inputs))
-			for i := 0; i <= len(viewModel.inputs)-1; i++ {
-				if i == viewModel.focusIndex {
+			cmds := make([]tea.Cmd, len(cm.inputs))
+			for i := 0; i <= len(cm.inputs)-1; i++ {
+				if i == cm.focusIndex {
 					// Set focused state
-					//cmds[i] = viewModel.inputs[i].Focus()
-					cmds = append(cmds, viewModel.inputs[i].Focus())
-					viewModel.inputs[i].PromptStyle = focusedStyle
-					viewModel.inputs[i].TextStyle = focusedStyle
+					//cmds[i] = cm.inputs[i].Focus()
+					cmds = append(cmds, cm.inputs[i].Focus())
+					cm.inputs[i].PromptStyle = focusedStyle
+					cm.inputs[i].TextStyle = focusedStyle
 					continue
 				}
 				// Remove focused state
-				viewModel.inputs[i].Blur()
-				viewModel.inputs[i].PromptStyle = noStyle
-				viewModel.inputs[i].TextStyle = noStyle
+				cm.inputs[i].Blur()
+				cm.inputs[i].PromptStyle = noStyle
+				cm.inputs[i].TextStyle = noStyle
 			}
 
 			return m, tea.Batch(cmds...)
@@ -171,7 +167,7 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.errorMessage = fmt.Sprintf("\u274C %s", msg.err.Error())
 		} else {
-			m.currentPage = Main
+			m.currentPage = Buckets
 			m.session = msg.sess
 		}
 		return m, nil
@@ -179,9 +175,9 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Default commands
 	defaultCmds := make([]tea.Cmd, 0)
-	defaultCmds = append(defaultCmds, viewModel.updateInputs(msg))
+	defaultCmds = append(defaultCmds, cm.updateInputs(msg))
 	var sc tea.Cmd
-	viewModel.spinner, sc = viewModel.spinner.Update(msg)
+	cm.spinner, sc = cm.spinner.Update(msg)
 	defaultCmds = append(defaultCmds, sc)
 
 	return m, tea.Batch(defaultCmds...)
@@ -195,23 +191,23 @@ func (m *Model) GetCredsView() string {
 	header := lipgloss.JoinVertical(lipgloss.Center, h1, h2)
 	fmt.Fprintf(&b, "%s\n\n", header)
 
-	for i := range viewModel.inputs {
+	for i := range cm.inputs {
 		// Provide padding on the front of the text boxes
 		b.WriteString(" ")
-		b.WriteString(viewModel.inputs[i].View())
-		if i < len(viewModel.inputs)-1 {
+		b.WriteString(cm.inputs[i].View())
+		if i < len(cm.inputs)-1 {
 			b.WriteRune('\n')
 		}
 	}
 
 	button := buttonStyle.Render("Submit")
-	if viewModel.focusIndex == len(viewModel.inputs) {
+	if cm.focusIndex == len(cm.inputs) {
 		button = activeButtonStyle.Render("Submit")
 	}
 	fmt.Fprintf(&b, "\n\n%s", buttonAlignedStyle.Render(button))
 
 	if m.loadingMessage != "" {
-		fmt.Fprintf(&b, "\n\n%s%s", viewModel.spinner.View(), m.loadingMessage)
+		fmt.Fprintf(&b, "\n\n%s%s", cm.spinner.View(), m.loadingMessage)
 	} else if m.errorMessage != "" {
 		fmt.Fprintf(&b, "\n\n%s", errorStyle.Render(m.errorMessage))
 	} else {
