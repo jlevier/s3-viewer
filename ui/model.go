@@ -14,9 +14,10 @@ const (
 )
 
 type Model struct {
-	currentPage CurrentPage
-	session     *session.Session
-	creds       CredsModel
+	currentPage    CurrentPage
+	session        *session.Session
+	loadingMessage string
+	errorMessage   string
 }
 
 func InitialModel() Model {
