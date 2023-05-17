@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -20,6 +21,9 @@ var (
 	noStyle             = lipgloss.NewStyle()
 	helpStyle           = blurredStyle.Copy()
 	cursorModeHelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	errorStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff4754")).Width(55).Padding(2)
+	dialogHeaderStyle   = lipgloss.NewStyle().Width(50).Align(lipgloss.Center)
+	buttonAlignedStyle  = lipgloss.NewStyle().Width(50).Align(lipgloss.Center)
 
 	dialogBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -49,11 +53,17 @@ type model struct {
 	focusIndex int
 	inputs     []textinput.Model
 	cursorMode textinput.CursorMode
+	spinner    spinner.Model
 }
 
 func initialModel() model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	m := model{
-		inputs: make([]textinput.Model, 2),
+		inputs:  make([]textinput.Model, 2),
+		spinner: s,
 	}
 
 	var t textinput.Model
@@ -105,7 +115,7 @@ func validateCreds(key, secret string) tea.Cmd {
 }
 
 func (m *Model) CredsInit() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, viewModel.spinner.Tick)
 }
 
 func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -159,7 +169,7 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case validateCredsMsg:
 		m.loadingMessage = ""
 		if msg.err != nil {
-			m.errorMessage = msg.err.Error()
+			m.errorMessage = fmt.Sprintf("\u274C %s", msg.err.Error())
 		} else {
 			m.currentPage = Main
 			m.session = msg.sess
@@ -167,16 +177,21 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	cmd := viewModel.updateInputs(msg)
+	// Default commands
+	defaultCmds := make([]tea.Cmd, 0)
+	defaultCmds = append(defaultCmds, viewModel.updateInputs(msg))
+	var sc tea.Cmd
+	viewModel.spinner, sc = viewModel.spinner.Update(msg)
+	defaultCmds = append(defaultCmds, sc)
 
-	return m, cmd
+	return m, tea.Batch(defaultCmds...)
 }
 
 func (m *Model) GetCredsView() string {
 	var b strings.Builder
 
-	h1 := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render("Seems you don't have any cached credentials.")
-	h2 := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render("Enter your AWS key and secret.")
+	h1 := dialogHeaderStyle.Render("Seems you don't have any cached credentials.")
+	h2 := dialogHeaderStyle.Render("Enter your AWS key and secret:")
 	header := lipgloss.JoinVertical(lipgloss.Center, h1, h2)
 	fmt.Fprintf(&b, "%s\n\n", header)
 
@@ -193,13 +208,12 @@ func (m *Model) GetCredsView() string {
 	if viewModel.focusIndex == len(viewModel.inputs) {
 		button = activeButtonStyle.Render("Submit")
 	}
-	buttonAligned := lipgloss.NewStyle().Width(50).Align(lipgloss.Center).Render(button)
-	fmt.Fprintf(&b, "\n\n%s", buttonAligned)
+	fmt.Fprintf(&b, "\n\n%s", buttonAlignedStyle.Render(button))
 
 	if m.loadingMessage != "" {
-		fmt.Fprintf(&b, "\n\n%s", m.loadingMessage)
+		fmt.Fprintf(&b, "\n\n%s%s", viewModel.spinner.View(), m.loadingMessage)
 	} else if m.errorMessage != "" {
-		fmt.Fprintf(&b, "\n\n%s", m.errorMessage)
+		fmt.Fprintf(&b, "\n\n%s", errorStyle.Render(m.errorMessage))
 	} else {
 		b.WriteString("\n\n")
 	}
