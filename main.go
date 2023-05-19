@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"s3-viewer/ui"
+	"s3-viewer/ui/control"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -18,7 +18,7 @@ func main() {
 		defer f.Close()
 	}
 
-	p := tea.NewProgram(ui.InitialModel(), tea.WithAltScreen())
+	p := tea.NewProgram(control.Model{}, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("There has been a problem: %s", err)
 		os.Exit(1)

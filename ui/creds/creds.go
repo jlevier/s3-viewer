@@ -1,9 +1,11 @@
-package ui
+package creds
 
 import (
 	"fmt"
 	"os"
 	"s3-viewer/api"
+	"s3-viewer/ui"
+	"s3-viewer/ui/types"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -25,15 +27,6 @@ var (
 	dialogHeaderStyle   = lipgloss.NewStyle().Width(50).Align(lipgloss.Center)
 	buttonAlignedStyle  = lipgloss.NewStyle().Width(50).Align(lipgloss.Center)
 
-	dialogBoxStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(1, 0).
-			BorderTop(true).
-			BorderLeft(true).
-			BorderRight(true).
-			BorderBottom(true)
-
 	buttonStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFF7DB")).
 			Background(lipgloss.Color("#888B7E")).
@@ -46,20 +39,22 @@ var (
 				MarginRight(2).
 				Underline(true)
 
-	cm = initialModel()
+	model = initialModel()
 )
 
 type credsModel struct {
-	focusIndex int
-	inputs     []textinput.Model
-	cursorMode textinput.CursorMode
-	spinner    spinner.Model
+	focusIndex     int
+	inputs         []textinput.Model
+	cursorMode     textinput.CursorMode
+	spinner        spinner.Model
+	loadingMessage string
+	errorMessage   string
 }
 
 func initialModel() credsModel {
 	m := credsModel{
 		inputs:  make([]textinput.Model, 2),
-		spinner: getSpinner(),
+		spinner: ui.GetSpinner(),
 	}
 
 	var t textinput.Model
@@ -110,11 +105,11 @@ func validateCreds(key, secret string) tea.Cmd {
 	}
 }
 
-func (m *Model) CredsInit() tea.Cmd {
-	return tea.Batch(textinput.Blink, cm.spinner.Tick)
+func Init(m *types.UiModel) tea.Cmd {
+	return tea.Batch(textinput.Blink, model.spinner.Tick)
 }
 
-func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		k := msg.String()
@@ -124,66 +119,66 @@ func (m *Model) GetCredsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			s := msg.String()
 
 			// Did the user press enter while the submit button was focused?
-			if s == "enter" && cm.focusIndex == len(cm.inputs) {
-				m.loadingMessage = "Validating..."
-				m.errorMessage = ""
-				return m, validateCreds(cm.inputs[0].Value(), cm.inputs[1].Value())
+			if s == "enter" && model.focusIndex == len(model.inputs) {
+				model.loadingMessage = "Validating..."
+				model.errorMessage = ""
+				return validateCreds(model.inputs[0].Value(), model.inputs[1].Value())
 			}
 
 			// Cycle indexes
 			if s == "up" || s == "shift+tab" {
-				cm.focusIndex--
+				model.focusIndex--
 			} else {
-				cm.focusIndex++
+				model.focusIndex++
 			}
 
-			if cm.focusIndex > len(cm.inputs) {
-				cm.focusIndex = 0
-			} else if cm.focusIndex < 0 {
-				cm.focusIndex = len(cm.inputs)
+			if model.focusIndex > len(model.inputs) {
+				model.focusIndex = 0
+			} else if model.focusIndex < 0 {
+				model.focusIndex = len(model.inputs)
 			}
 
-			cmds := make([]tea.Cmd, len(cm.inputs))
-			for i := 0; i <= len(cm.inputs)-1; i++ {
-				if i == cm.focusIndex {
+			cmds := make([]tea.Cmd, len(model.inputs))
+			for i := 0; i <= len(model.inputs)-1; i++ {
+				if i == model.focusIndex {
 					// Set focused state
-					//cmds[i] = cm.inputs[i].Focus()
-					cmds = append(cmds, cm.inputs[i].Focus())
-					cm.inputs[i].PromptStyle = focusedStyle
-					cm.inputs[i].TextStyle = focusedStyle
+					//cmds[i] = model.inputs[i].Focus()
+					cmds = append(cmds, model.inputs[i].Focus())
+					model.inputs[i].PromptStyle = focusedStyle
+					model.inputs[i].TextStyle = focusedStyle
 					continue
 				}
 				// Remove focused state
-				cm.inputs[i].Blur()
-				cm.inputs[i].PromptStyle = noStyle
-				cm.inputs[i].TextStyle = noStyle
+				model.inputs[i].Blur()
+				model.inputs[i].PromptStyle = noStyle
+				model.inputs[i].TextStyle = noStyle
 			}
 
-			return m, tea.Batch(cmds...)
+			return tea.Batch(cmds...)
 		}
 
 	case validateCredsMsg:
-		m.loadingMessage = ""
+		model.loadingMessage = ""
 		if msg.err != nil {
-			m.errorMessage = fmt.Sprintf("\u274C %s", msg.err.Error())
+			model.errorMessage = fmt.Sprintf("\u274C %s", msg.err.Error())
 		} else {
-			m.currentPage = Buckets
-			m.session = msg.sess
+			m.CurrentPage = types.Buckets
+			m.Session = msg.sess
 		}
-		return m, nil
+		return nil
 	}
 
 	// Default commands
 	defaultCmds := make([]tea.Cmd, 0)
-	defaultCmds = append(defaultCmds, cm.updateInputs(msg))
+	defaultCmds = append(defaultCmds, model.updateInputs(msg))
 	var sc tea.Cmd
-	cm.spinner, sc = cm.spinner.Update(msg)
+	model.spinner, sc = model.spinner.Update(msg)
 	defaultCmds = append(defaultCmds, sc)
 
-	return m, tea.Batch(defaultCmds...)
+	return tea.Batch(defaultCmds...)
 }
 
-func (m *Model) GetCredsView() string {
+func View(m *types.UiModel) string {
 	var b strings.Builder
 
 	h1 := dialogHeaderStyle.Render("Seems you don't have any cached credentials.")
@@ -191,25 +186,25 @@ func (m *Model) GetCredsView() string {
 	header := lipgloss.JoinVertical(lipgloss.Center, h1, h2)
 	fmt.Fprintf(&b, "%s\n\n", header)
 
-	for i := range cm.inputs {
+	for i := range model.inputs {
 		// Provide padding on the front of the text boxes
 		b.WriteString(" ")
-		b.WriteString(cm.inputs[i].View())
-		if i < len(cm.inputs)-1 {
+		b.WriteString(model.inputs[i].View())
+		if i < len(model.inputs)-1 {
 			b.WriteRune('\n')
 		}
 	}
 
 	button := buttonStyle.Render("Submit")
-	if cm.focusIndex == len(cm.inputs) {
+	if model.focusIndex == len(model.inputs) {
 		button = activeButtonStyle.Render("Submit")
 	}
 	fmt.Fprintf(&b, "\n\n%s", buttonAlignedStyle.Render(button))
 
-	if m.loadingMessage != "" {
-		fmt.Fprintf(&b, "\n\n%s%s", cm.spinner.View(), m.loadingMessage)
-	} else if m.errorMessage != "" {
-		fmt.Fprintf(&b, "\n\n%s", errorStyle.Render(m.errorMessage))
+	if model.loadingMessage != "" {
+		fmt.Fprintf(&b, "\n\n%s%s", model.spinner.View(), model.loadingMessage)
+	} else if model.errorMessage != "" {
+		fmt.Fprintf(&b, "\n\n%s", errorStyle.Render(model.errorMessage))
 	} else {
 		b.WriteString("\n\n")
 	}
@@ -228,7 +223,7 @@ func (m *Model) GetCredsView() string {
 	p := lipgloss.Place(
 		width, height,
 		lipgloss.Center, lipgloss.Center,
-		dialogBoxStyle.Render(b.String()),
+		ui.DialogBoxStyle.Render(b.String()),
 		lipgloss.WithWhitespaceChars("Ш#"),
 		lipgloss.WithWhitespaceForeground(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}))
 

@@ -1,8 +1,10 @@
-package ui
+package buckets
 
 import (
 	"fmt"
 	"s3-viewer/api"
+	"s3-viewer/ui"
+	"s3-viewer/ui/types"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -11,7 +13,7 @@ import (
 )
 
 var (
-	bm bucketsModel
+	model bucketsModel
 )
 
 type bucketsModel struct {
@@ -25,15 +27,15 @@ type getBucketsMsg struct {
 	err     error
 }
 
-func (m *Model) BucketsInit() tea.Cmd {
-	bm = bucketsModel{spinner: getSpinner(), isLoading: true}
+func Init(m *types.UiModel) tea.Cmd {
+	model = bucketsModel{spinner: ui.GetSpinner(), isLoading: true}
 
 	cmds := make([]tea.Cmd, 0)
-	cmds = append(cmds, bm.spinner.Tick)
+	cmds = append(cmds, model.spinner.Tick)
 
 	cmds = append(cmds, func() tea.Msg {
-		b, err := api.GetBuckets(m.session)
-		bm.isLoading = false
+		b, err := api.GetBuckets(m.Session)
+		model.isLoading = false
 		if err != nil {
 			return getBucketsMsg{nil, err}
 		}
@@ -43,34 +45,34 @@ func (m *Model) BucketsInit() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (m *Model) GetBucketsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case getBucketsMsg:
 		if msg.err != nil {
 			panic(msg.err) //TODO do something actually meaningful here
 		}
 
-		bm.buckets = msg.buckets
+		model.buckets = msg.buckets
 	}
 
 	// Default commands
 	defaultCmds := make([]tea.Cmd, 0)
 	var sc tea.Cmd
-	bm.spinner, sc = bm.spinner.Update(msg)
+	model.spinner, sc = model.spinner.Update(msg)
 	defaultCmds = append(defaultCmds, sc)
 
-	return m, tea.Batch(defaultCmds...)
+	return tea.Batch(defaultCmds...)
 }
 
-func (m *Model) GetBucketsView() string {
-	if bm.isLoading {
-		return getLoadingDialog("Loading Buckets", bm.spinner)
+func View(m *types.UiModel) string {
+	if model.isLoading {
+		return ui.GetLoadingDialog("Loading Buckets", model.spinner)
 	}
 
 	var b strings.Builder
 
-	if bm.buckets != nil {
-		for _, bucket := range bm.buckets {
+	if model.buckets != nil {
+		for _, bucket := range model.buckets {
 			fmt.Fprintf(&b, "%s\n", *bucket.Name)
 		}
 		return b.String()
