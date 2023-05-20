@@ -9,7 +9,7 @@ import (
 	"golang.org/x/term"
 )
 
-func getSpinner() spinner.Model {
+func GetSpinner() spinner.Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -17,7 +17,7 @@ func getSpinner() spinner.Model {
 	return s
 }
 
-func getLoadingDialog(msg string, s spinner.Model) string {
+func GetLoadingDialog(msg string, s spinner.Model) string {
 	// Get terminal size and place dialog in the center
 	docStyle := lipgloss.NewStyle()
 	width, height, _ := term.GetSize(int(os.Stdout.Fd()))
@@ -32,7 +32,7 @@ func getLoadingDialog(msg string, s spinner.Model) string {
 	p := lipgloss.Place(
 		width, height,
 		lipgloss.Center, lipgloss.Center,
-		dialogBoxStyle.Render(fmt.Sprintf("%s%s", s.View(), msg)),
+		DialogBoxStyle.Render(fmt.Sprintf("%s%s", s.View(), msg)),
 		lipgloss.WithWhitespaceChars("Ш#"),
 		lipgloss.WithWhitespaceForeground(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}))
 
