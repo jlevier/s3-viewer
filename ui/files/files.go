@@ -31,7 +31,7 @@ func Init(m *types.UiModel) tea.Cmd {
 	//cmds = append(cmds, model.spinner.Tick)
 
 	cmds = append(cmds, func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.CurrentBucket)
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket())
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -57,11 +57,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
-			cmds = append(cmds, func() tea.Msg {
-				return types.ChangeCurrentPageMsg{
-					CurrentPage: types.Buckets,
-				}
-			})
+			cmds = append(cmds, m.SetCurrentPage(types.Buckets, nil))
 		}
 	}
 
@@ -69,5 +65,5 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 }
 
 func View(m *types.UiModel) string {
-	return fmt.Sprintf("In the files view for %s\n%s", m.CurrentBucket, model.files)
+	return fmt.Sprintf("In the files view for %s\n%s", m.GetCurrentBucket(), model.files)
 }

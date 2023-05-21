@@ -1,6 +1,11 @@
 package types
 
-import "github.com/aws/aws-sdk-go/aws/session"
+import (
+	"s3-viewer/api"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 const (
 	Creds   CurrentPage = "creds"
@@ -20,7 +25,53 @@ type ChangeCurrentPageMsg struct {
 // This is the main model used for the overall UI and for
 // pages to pass information back and forth to each other.
 type UiModel struct {
-	CurrentPage   CurrentPage
 	Session       *session.Session
-	CurrentBucket string
+	currentPage   CurrentPage
+	currentBucket string
+}
+
+func GetInitialModel() *UiModel {
+	ch := make(chan *api.SessionResponse)
+	go api.GetSession(ch)
+	resp := <-ch
+
+	if resp.Err != nil {
+		m := &UiModel{
+			currentPage: Creds,
+			Session:     nil,
+		}
+
+		return m
+	}
+
+	m := &UiModel{
+		currentPage: Buckets,
+		Session:     resp.Session,
+	}
+
+	return m
+}
+
+func (m *UiModel) GetCurrentPage() CurrentPage {
+	return m.currentPage
+}
+
+func (m *UiModel) GetCurrentBucket() string {
+	return m.currentBucket
+}
+
+func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string) tea.Cmd {
+	m.currentPage = currentPage
+	if currentBucket != nil {
+		m.currentBucket = *currentBucket
+	} else {
+		m.currentBucket = ""
+	}
+
+	return func() tea.Msg {
+		return ChangeCurrentPageMsg{
+			CurrentPage:   m.currentPage,
+			CurrentBucket: m.currentBucket,
+		}
+	}
 }

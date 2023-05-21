@@ -162,8 +162,9 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		if msg.err != nil {
 			model.errorMessage = fmt.Sprintf("\u274C %s", msg.err.Error())
 		} else {
-			m.CurrentPage = types.Buckets
 			m.Session = msg.sess
+			//TODO need to make this return the cmd (declare defaultCmds below higher up and append here)
+			m.SetCurrentPage(types.Buckets, nil)
 		}
 		return nil
 	}

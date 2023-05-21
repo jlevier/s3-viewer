@@ -110,12 +110,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 				model.table.Focus()
 			}
 		case "enter":
-			cmds = append(cmds, func() tea.Msg {
-				return types.ChangeCurrentPageMsg{
-					CurrentPage:   types.Files,
-					CurrentBucket: model.table.SelectedRow()[0],
-				}
-			})
+			cmds = append(cmds, m.SetCurrentPage(types.Files, &model.table.SelectedRow()[0]))
 		}
 
 		var cmd tea.Cmd
