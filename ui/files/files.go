@@ -15,7 +15,8 @@ var (
 )
 
 type filesModel struct {
-	files []*s3.Object
+	directories []string
+	files       []*s3.Object
 	//spinner   spinner.Model
 	isLoading bool
 	//table     table.Model
@@ -31,7 +32,7 @@ func Init(m *types.UiModel) tea.Cmd {
 	//cmds = append(cmds, model.spinner.Tick)
 
 	cmds = append(cmds, func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.GetCurrentBucket())
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/")
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -52,6 +53,10 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 			panic(msg.err) //TODO do something actually meaningful here
 		}
 
+		model.directories = make([]string, len(msg.objects.CommonPrefixes))
+		for _, p := range msg.objects.CommonPrefixes {
+			model.directories = append(model.directories, *p.Prefix)
+		}
 		model.files = msg.objects.Contents
 
 	case tea.KeyMsg:
@@ -65,5 +70,6 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 }
 
 func View(m *types.UiModel) string {
-	return fmt.Sprintf("In the files view for %s\n%s", m.GetCurrentBucket(), model.files)
+	s := fmt.Sprintf("%s", model.directories)
+	return fmt.Sprintf("In the files view for %s\n%s\n%s", s, m.GetCurrentBucket(), model.files)
 }
