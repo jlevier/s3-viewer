@@ -23,3 +23,5 @@ go.work
 debug.log
 
 .vscode/
+
+s3-viewer
