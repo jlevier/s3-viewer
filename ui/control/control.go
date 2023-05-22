@@ -1,9 +1,9 @@
 package control
 
 import (
-	"s3-viewer/api"
 	"s3-viewer/ui/buckets"
 	"s3-viewer/ui/creds"
+	"s3-viewer/ui/files"
 	"s3-viewer/ui/types"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,32 +20,46 @@ var (
 // must also be referenced here by the control to pass off page functionality.
 type Model struct{}
 
-func getInitialModel() *types.UiModel {
-	ch := make(chan *api.SessionResponse)
-	go api.GetSession(ch)
-	resp := <-ch
+// func getInitialModel() *types.UiModel {
+// 	ch := make(chan *api.SessionResponse)
+// 	go api.GetSession(ch)
+// 	resp := <-ch
 
-	if resp.Err != nil {
-		return &types.UiModel{
-			CurrentPage: types.Creds,
-			Session:     nil,
-		}
-	}
+// 	if resp.Err != nil {
+// 		m := &types.UiModel{
+// 			Session: nil,
+// 		}
+// 		m.SetCurrentPage(types.Creds, nil)
+// 		return m
+// 	}
 
-	return &types.UiModel{
-		CurrentPage: types.Buckets,
-		Session:     resp.Session,
-	}
-}
+// 	m := &types.UiModel{
+// 		Session: resp.Session,
+// 	}
+// 	m.SetCurrentPage(types.Buckets, nil)
+// 	return m
+// }
 
 func (m Model) Init() tea.Cmd {
 	if uiModel == nil {
-		uiModel = getInitialModel()
+		uiModel = types.GetInitialModel()
 	}
 
-	switch uiModel.CurrentPage {
+	// TODO - need to refactor how the current page is being changed because this Init method
+	// is only being called once.  Should probably create a changeCurrentPageMsg that can bubble up to the Update
+	// method here
+	// cmds := make([]tea.Cmd, 3)
+	// cmds = append(cmds, buckets.Init(uiModel))
+	// cmds = append(cmds, files.Init(uiModel))
+	// cmds = append(cmds, creds.Init(uiModel))
+
+	// return tea.Batch(cmds...)
+
+	switch uiModel.GetCurrentPage() {
 	case types.Buckets:
 		return buckets.Init(uiModel)
+	case types.Files:
+		return files.Init(uiModel)
 	default:
 		return creds.Init(uiModel)
 	}
@@ -58,20 +72,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if k == "ctrl+c" {
 			return m, tea.Quit
 		}
+
+	case types.ChangeCurrentPageMsg:
+		switch uiModel.GetCurrentPage() {
+		case types.Buckets:
+			return m, buckets.Init(uiModel)
+		case types.Files:
+			return m, files.Init(uiModel)
+		default:
+			return m, creds.Init(uiModel)
+		}
 	}
 
-	switch uiModel.CurrentPage {
+	switch uiModel.GetCurrentPage() {
 	case types.Buckets:
 		return m, buckets.Update(uiModel, msg)
+	case types.Files:
+		return m, files.Update(uiModel, msg)
 	default:
 		return m, creds.Update(uiModel, msg)
 	}
 }
 
 func (m Model) View() string {
-	switch uiModel.CurrentPage {
+	switch uiModel.GetCurrentPage() {
 	case types.Buckets:
 		return buckets.View(uiModel)
+	case types.Files:
+		return files.View(uiModel)
 	default:
 		return creds.View(uiModel)
 	}

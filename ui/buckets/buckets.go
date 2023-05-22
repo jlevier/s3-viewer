@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	model     bucketsModel
+	model     *bucketsModel
 	baseStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240"))
@@ -60,7 +60,11 @@ func initTable() table.Model {
 }
 
 func Init(m *types.UiModel) tea.Cmd {
-	model = bucketsModel{
+	if model != nil {
+		return nil
+	}
+
+	model = &bucketsModel{
 		spinner:   ui.GetSpinner(),
 		isLoading: true,
 		table:     initTable(),
@@ -106,9 +110,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 				model.table.Focus()
 			}
 		case "enter":
-			return tea.Batch(
-				tea.Printf("Let's go to %s!", model.table.SelectedRow()[0]),
-			)
+			cmds = append(cmds, m.SetCurrentPage(types.Files, &model.table.SelectedRow()[0]))
 		}
 
 		var cmd tea.Cmd
