@@ -4,11 +4,11 @@ import (
 	"os"
 	"s3-viewer/api"
 	"s3-viewer/ui"
+	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
@@ -25,7 +25,7 @@ type bucketsModel struct {
 	buckets   []*s3.Bucket
 	spinner   spinner.Model
 	isLoading bool
-	table     table.Model
+	table     *table.Model
 }
 
 type getBucketsMsg struct {
@@ -33,30 +33,13 @@ type getBucketsMsg struct {
 	err     error
 }
 
-func initTable() table.Model {
+func initTable() *table.Model {
 	columns := []table.Column{
-		{Title: "Bucket", Width: 50},
-		{Title: "Creation Date", Width: 35},
+		{Name: "Bucket", Width: 50},
+		{Name: "Creation Date", Width: 35},
 	}
 
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithFocused(true),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
-	t.SetStyles(s)
-
-	return t
+	return table.New(columns)
 }
 
 func Init(m *types.UiModel) tea.Cmd {
@@ -99,23 +82,23 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		for _, b := range model.buckets {
 			r = append(r, table.Row{*b.Name, b.CreationDate.String()})
 		}
-		model.table.SetRows(r)
+		model.table.SetData(r)
 
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
-			if model.table.Focused() {
-				model.table.Blur()
-			} else {
-				model.table.Focus()
-			}
-		case "enter":
-			cmds = append(cmds, m.SetCurrentPage(types.Files, &model.table.SelectedRow()[0]))
-		}
+		// case tea.KeyMsg:
+		// 	switch msg.String() {
+		// 	case "esc":
+		// 		if model.table.Focused() {
+		// 			model.table.Blur()
+		// 		} else {
+		// 			model.table.Focus()
+		// 		}
+		// 	case "enter":
+		// 		cmds = append(cmds, m.SetCurrentPage(types.Files, &model.table.SelectedRow()[0]))
+		// 	}
 
-		var cmd tea.Cmd
-		model.table, cmd = model.table.Update(msg)
-		cmds = append(cmds, cmd)
+		// 	var cmd tea.Cmd
+		// 	model.table, cmd = model.table.Update(msg)
+		// 	cmds = append(cmds, cmd)
 	}
 
 	// Default commands
@@ -143,8 +126,7 @@ func View(m *types.UiModel) string {
 			docStyle = docStyle.MaxHeight(height)
 		}
 
-		// model.table.SetWidth(width)
-		model.table.SetHeight(height - 5)
+		//model.table.SetHeight(height - 5)
 
 		p := lipgloss.Place(
 			width, height,
