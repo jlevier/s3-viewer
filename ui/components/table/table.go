@@ -1,10 +1,12 @@
 package table
 
 import (
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"golang.org/x/term"
 )
 
 var (
@@ -27,12 +29,14 @@ type Model struct {
 	columns             []Column
 	data                []Row
 	highlightedRowIndex int
+	firstVisibleRow     int
 }
 
 func New(c []Column) *Model {
 	return &Model{
 		columns:             c,
 		highlightedRowIndex: 0,
+		firstVisibleRow:     0,
 	}
 }
 
@@ -60,9 +64,12 @@ func (m *Model) renderHeader() string {
 }
 
 func (m *Model) renderRows() string {
-	s := make([]string, len(m.data))
+	lastRow := m.getVisibleRowCount()
 
-	for i, r := range m.data {
+	s := make([]string, lastRow)
+
+	index := 0
+	for i := m.firstVisibleRow; i < lastRow+m.firstVisibleRow; i++ {
 		row := make([]string, len(m.columns))
 
 		for j, c := range m.columns {
@@ -70,11 +77,17 @@ func (m *Model) renderRows() string {
 			if i == m.highlightedRowIndex {
 				style = highlightedRowStyle.Copy().Width(c.Width)
 			}
-			row[j] = style.Render(r[j])
+			row[j] = style.Render(m.data[i][j])
 		}
 
-		s[i] = lipgloss.JoinHorizontal(lipgloss.Center, row...)
+		//log.Println(index)
+		s[index] = lipgloss.JoinHorizontal(lipgloss.Center, row...)
+		index++
 	}
+
+	// for _, o := range s {
+	// 	log.Println(o)
+	// }
 
 	return lipgloss.JoinVertical(lipgloss.Center, s...)
 }
@@ -85,6 +98,17 @@ func (m *Model) GetHighlightedRow() *Row {
 	}
 
 	return nil
+}
+
+func (m *Model) getVisibleRowCount() int {
+	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
+	calc := height - 4
+	lastRow := len(m.data) - 1
+	if len(m.data) > calc {
+		lastRow = calc - 1
+	}
+
+	return lastRow
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
@@ -99,6 +123,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		case "down":
 			if m.highlightedRowIndex < len(m.data)-1 {
 				m.highlightedRowIndex++
+			}
+			//log.Printf("%v %v", m.highlightedRowIndex, m.getVisibleRowCount()-m.firstVisibleRow-1)
+			if m.highlightedRowIndex > m.getVisibleRowCount()-m.firstVisibleRow-1 {
+				m.firstVisibleRow++
 			}
 		}
 	}
