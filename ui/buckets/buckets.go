@@ -15,10 +15,14 @@ import (
 )
 
 var (
-	model     *bucketsModel
+	model *bucketsModel
+
 	baseStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("240"))
+
+	iconStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("212"))
 )
 
 type bucketsModel struct {
@@ -35,6 +39,7 @@ type getBucketsMsg struct {
 
 func initTable() *table.Model {
 	columns := []table.Column{
+		{Name: "", Width: 3}, // Icon column
 		{Name: "Bucket", Width: 50},
 		{Name: "Creation Date", Width: 35},
 	}
@@ -80,25 +85,28 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		model.buckets = msg.buckets
 		r := make([]table.Row, 0)
 		for _, b := range model.buckets {
-			r = append(r, table.Row{*b.Name, b.CreationDate.String()})
+			r = append(r, table.Row{iconStyle.Render("\ue703"), *b.Name, b.CreationDate.String()})
 		}
 		model.table.SetData(r)
 
-		// case tea.KeyMsg:
-		// 	switch msg.String() {
+	case tea.KeyMsg:
+		switch msg.String() {
 		// 	case "esc":
 		// 		if model.table.Focused() {
 		// 			model.table.Blur()
 		// 		} else {
 		// 			model.table.Focus()
 		// 		}
-		// 	case "enter":
-		// 		cmds = append(cmds, m.SetCurrentPage(types.Files, &model.table.SelectedRow()[0]))
-		// 	}
+		case "enter":
+			r := model.table.GetHighlightedRow()
+			if r != nil {
+				cmds = append(cmds, m.SetCurrentPage(types.Files, &(*r)[1]))
+			}
+		}
 
-		// 	var cmd tea.Cmd
-		// 	model.table, cmd = model.table.Update(msg)
-		// 	cmds = append(cmds, cmd)
+		var cmd tea.Cmd
+		model.table, cmd = model.table.Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	// Default commands
