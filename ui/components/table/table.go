@@ -1,6 +1,7 @@
 package table
 
 import (
+	"log"
 	"os"
 	"strings"
 
@@ -119,15 +120,17 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.highlightedRowIndex > 0 {
 				m.highlightedRowIndex--
 			}
-			return m, nil
+			log.Printf("%v %v %v", m.highlightedRowIndex, m.firstVisibleRow, m.getVisibleRowCount())
 		case "down":
 			if m.highlightedRowIndex < len(m.data)-1 {
 				m.highlightedRowIndex++
 			}
-			//log.Printf("%v %v", m.highlightedRowIndex, m.getVisibleRowCount()-m.firstVisibleRow-1)
-			if m.highlightedRowIndex > m.getVisibleRowCount()-m.firstVisibleRow-1 {
+
+			// See if you're past the end and need to shift the displayed rows up by one
+			if m.highlightedRowIndex > m.getVisibleRowCount()+m.firstVisibleRow-1 {
 				m.firstVisibleRow++
 			}
+			log.Printf("%v %v %v", m.highlightedRowIndex, m.firstVisibleRow, m.getVisibleRowCount())
 		}
 	}
 
