@@ -1,7 +1,6 @@
 package table
 
 import (
-	"log"
 	"os"
 	"strings"
 
@@ -81,14 +80,9 @@ func (m *Model) renderRows() string {
 			row[j] = style.Render(m.data[i][j])
 		}
 
-		//log.Println(index)
 		s[index] = lipgloss.JoinHorizontal(lipgloss.Center, row...)
 		index++
 	}
-
-	// for _, o := range s {
-	// 	log.Println(o)
-	// }
 
 	return lipgloss.JoinVertical(lipgloss.Center, s...)
 }
@@ -120,7 +114,11 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.highlightedRowIndex > 0 {
 				m.highlightedRowIndex--
 			}
-			log.Printf("%v %v %v", m.highlightedRowIndex, m.firstVisibleRow, m.getVisibleRowCount())
+
+			// See if you are now above the first visible row and need to shift displayed rows down by one
+			if m.highlightedRowIndex < m.firstVisibleRow {
+				m.firstVisibleRow--
+			}
 		case "down":
 			if m.highlightedRowIndex < len(m.data)-1 {
 				m.highlightedRowIndex++
@@ -130,7 +128,6 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.highlightedRowIndex > m.getVisibleRowCount()+m.firstVisibleRow-1 {
 				m.firstVisibleRow++
 			}
-			log.Printf("%v %v %v", m.highlightedRowIndex, m.firstVisibleRow, m.getVisibleRowCount())
 		}
 	}
 
