@@ -17,12 +17,8 @@ import (
 var (
 	model *bucketsModel
 
-	baseStyle = lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("240"))
-
 	iconStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("212"))
+			Foreground(lipgloss.Color("#E87C3C"))
 )
 
 type bucketsModel struct {
@@ -134,12 +130,10 @@ func View(m *types.UiModel) string {
 			docStyle = docStyle.MaxHeight(height)
 		}
 
-		//model.table.SetHeight(height - 5)
-
 		p := lipgloss.Place(
 			width, height,
 			lipgloss.Center, lipgloss.Center,
-			baseStyle.Render(model.table.View()),
+			model.table.View(),
 		)
 
 		return docStyle.Render(p)

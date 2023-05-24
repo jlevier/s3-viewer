@@ -1,6 +1,7 @@
 package table
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -11,11 +12,19 @@ import (
 
 var (
 	highlightedRowStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#F25D94"))
+				Foreground(lipgloss.Color("#ffffff")).
+				Background(lipgloss.Color("#9a87a1"))
 
 	headerRowStyle = lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), false, false, true).
 			BorderForeground(lipgloss.Color("#383838"))
+
+	borderStyle = lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240"))
+
+	footerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("205"))
 )
 
 type Column struct {
@@ -47,8 +56,11 @@ func (m *Model) SetData(r []Row) {
 func (m *Model) View() string {
 	h := m.renderHeader()
 	r := m.renderRows()
+	f := m.renderFooter()
 
-	return lipgloss.JoinVertical(lipgloss.Center, h, r)
+	j := lipgloss.JoinVertical(lipgloss.Center, h, r, f)
+
+	return borderStyle.Render(j)
 }
 
 func (m *Model) renderHeader() string {
@@ -73,11 +85,7 @@ func (m *Model) renderRows() string {
 		row := make([]string, len(m.columns))
 
 		for j, c := range m.columns {
-			style := lipgloss.NewStyle().Width(c.Width)
-			if i == m.highlightedRowIndex {
-				style = highlightedRowStyle.Copy().Width(c.Width)
-			}
-			row[j] = style.Render(m.data[i][j])
+			row[j] = m.renderColumn(m.data[i][j], c, i, j)
 		}
 
 		s[index] = lipgloss.JoinHorizontal(lipgloss.Center, row...)
@@ -85,6 +93,56 @@ func (m *Model) renderRows() string {
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Center, s...)
+}
+
+func (m *Model) renderColumn(data string, c Column, currentRow, currentCol int) string {
+	style := lipgloss.NewStyle().Width(c.Width)
+	if currentRow == m.highlightedRowIndex {
+		style = highlightedRowStyle.Copy().Width(c.Width)
+	}
+	if currentCol == 0 {
+		style = style.Copy().Padding(0, 0, 0, 1)
+	} else if currentCol == len(m.columns)-1 {
+		style = style.Copy().Padding(0, 1, 0, 0)
+	}
+
+	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
+	dataFinal := data
+	calc := c.Width - 5
+	if len(data) > calc && calc > 0 {
+		dataFinal = fmt.Sprintf("%s...", data[:calc])
+	}
+
+	return style.Render(dataFinal)
+}
+
+func (m *Model) renderFooter() string {
+	width := 0
+	for _, w := range m.columns {
+		width += w.Width
+	}
+
+	left := "/" //TODO should be current path
+	right := make([]string, 0)
+
+	if m.highlightedRowIndex > 0 {
+		right = append(right, "\uf062") // down arrow
+	}
+	if m.highlightedRowIndex < len(m.data)-1 {
+		right = append(right, "\uf063") // up arrow
+	}
+
+	rightStyle := footerStyle.Copy().
+		AlignHorizontal(lipgloss.Right).
+		Width(width / 2)
+
+	leftStyle := footerStyle.Copy().
+		Width(width / 2)
+
+	leftFinal := leftStyle.Render(left)
+	rightFinal := rightStyle.Render(strings.Join(right, " "))
+
+	return lipgloss.JoinHorizontal(lipgloss.Bottom, leftFinal, rightFinal)
 }
 
 func (m *Model) GetHighlightedRow() *Row {
