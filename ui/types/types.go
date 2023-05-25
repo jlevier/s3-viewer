@@ -28,6 +28,7 @@ type UiModel struct {
 	Session       *session.Session
 	currentPage   CurrentPage
 	currentBucket string
+	currentPath   string
 }
 
 func GetInitialModel() *UiModel {
@@ -60,8 +61,11 @@ func (m *UiModel) GetCurrentBucket() string {
 	return m.currentBucket
 }
 
+func (m *UiModel) GetCurrentPath() string {
+	return m.currentPath
+}
+
 func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string) tea.Cmd {
-	m.currentPage = currentPage
 	if currentBucket != nil {
 		m.currentBucket = *currentBucket
 	} else {
@@ -69,6 +73,7 @@ func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string)
 	}
 
 	return func() tea.Msg {
+		m.currentPage = currentPage
 		return ChangeCurrentPageMsg{
 			CurrentPage:   m.currentPage,
 			CurrentBucket: m.currentBucket,

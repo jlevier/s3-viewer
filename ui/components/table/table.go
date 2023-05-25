@@ -39,6 +39,7 @@ type Model struct {
 	data                []Row
 	highlightedRowIndex int
 	firstVisibleRow     int
+	footerInfo          string
 }
 
 func New(c []Column) *Model {
@@ -51,6 +52,10 @@ func New(c []Column) *Model {
 
 func (m *Model) SetData(r []Row) {
 	m.data = r
+}
+
+func (m *Model) SetFooterInfo(f string) {
+	m.footerInfo = f
 }
 
 func (m *Model) View() string {
@@ -78,6 +83,10 @@ func (m *Model) renderHeader() string {
 func (m *Model) renderRows() string {
 	lastRow := m.getVisibleRowCount()
 
+	if lastRow < 0 {
+		return ""
+	}
+
 	s := make([]string, lastRow)
 
 	index := 0
@@ -92,7 +101,10 @@ func (m *Model) renderRows() string {
 		index++
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Center, s...)
+	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
+	h := lipgloss.NewStyle().Height(height - 5)
+
+	return h.Render(lipgloss.JoinVertical(lipgloss.Center, s...))
 }
 
 func (m *Model) renderColumn(data string, c Column, currentRow, currentCol int) string {
@@ -122,7 +134,7 @@ func (m *Model) renderFooter() string {
 		width += w.Width
 	}
 
-	left := "/" //TODO should be current path
+	left := m.footerInfo
 	right := make([]string, 0)
 
 	if m.highlightedRowIndex > 0 {
