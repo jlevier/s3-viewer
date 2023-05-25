@@ -5,6 +5,7 @@ import (
 	"os"
 	"s3-viewer/api"
 	"s3-viewer/ui"
+	"s3-viewer/ui/components/icons"
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
 
@@ -51,7 +52,7 @@ func getFileRow(f *s3.Object) table.Row {
 		owner = *f.Owner.DisplayName
 	}
 
-	return table.Row{"F", *f.Key, fmt.Sprint(*f.Size), f.LastModified.String(), owner}
+	return table.Row{icons.GetIcon(*f.Key), *f.Key, fmt.Sprint(*f.Size), f.LastModified.String(), owner}
 }
 
 func Init(m *types.UiModel) tea.Cmd {
@@ -98,7 +99,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 
 		r := make([]table.Row, 0)
 		for _, d := range model.directories {
-			r = append(r, table.Row{"D", d, "", "", ""})
+			r = append(r, table.Row{icons.GetDirectoryIcon(), d, "", "", ""})
 		}
 		if model.files != nil {
 			for _, f := range model.files {
