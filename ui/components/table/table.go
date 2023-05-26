@@ -168,7 +168,8 @@ func (m *Model) GetHighlightedRow() *Row {
 func (m *Model) getVisibleRowCount() int {
 	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
 	calc := height - 4
-	lastRow := len(m.data) - 1
+	lastRow := len(m.data)
+
 	if len(m.data) > calc {
 		lastRow = calc - 1
 	}

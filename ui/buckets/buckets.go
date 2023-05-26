@@ -105,10 +105,11 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, cmd)
 	}
 
-	// Default commands
-	var sc tea.Cmd
-	model.spinner, sc = model.spinner.Update(msg)
-	cmds = append(cmds, sc)
+	if model.isLoading {
+		var sc tea.Cmd
+		model.spinner, sc = model.spinner.Update(msg)
+		cmds = append(cmds, sc)
+	}
 
 	return tea.Batch(cmds...)
 }
