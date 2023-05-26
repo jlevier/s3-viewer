@@ -113,6 +113,22 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		switch msg.String() {
 		case "esc":
 			cmds = append(cmds, m.SetCurrentPage(types.Buckets, nil))
+		case "enter":
+			cmds = append(cmds, func() tea.Msg {
+				r := model.table.GetHighlightedRow()
+				if r != nil {
+					o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), (*r)[1])
+					model.isLoading = false
+					if err != nil {
+						return getFilesMsg{nil, err}
+					}
+
+					m.SetCurrentPath((*r)[1])
+					return getFilesMsg{o, nil}
+				}
+
+				return nil
+			})
 		}
 
 		var cmd tea.Cmd

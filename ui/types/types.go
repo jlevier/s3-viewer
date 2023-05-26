@@ -80,3 +80,7 @@ func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string)
 		}
 	}
 }
+
+func (m *UiModel) SetCurrentPath(path string) {
+	m.currentPath = path
+}
