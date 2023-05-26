@@ -22,6 +22,10 @@ type ChangeCurrentPageMsg struct {
 	CurrentBucket string
 }
 
+type ChangeCurrentPathMsg struct {
+	CurrentPath string
+}
+
 // This is the main model used for the overall UI and for
 // pages to pass information back and forth to each other.
 type UiModel struct {
@@ -72,6 +76,8 @@ func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string)
 		m.currentBucket = ""
 	}
 
+	m.currentPath = ""
+
 	return func() tea.Msg {
 		m.currentPage = currentPage
 		return ChangeCurrentPageMsg{
@@ -81,6 +87,12 @@ func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string)
 	}
 }
 
-func (m *UiModel) SetCurrentPath(path string) {
+func (m *UiModel) SetCurrentPath(path string) tea.Cmd {
 	m.currentPath = path
+
+	return func() tea.Msg {
+		return ChangeCurrentPathMsg{
+			CurrentPath: m.currentPath,
+		}
+	}
 }

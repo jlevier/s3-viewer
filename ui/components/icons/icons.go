@@ -3,7 +3,6 @@ package icons
 
 import (
 	"fmt"
-	"log"
 	"path/filepath"
 )
 
@@ -16,7 +15,6 @@ type Icon struct {
 
 func GetIcon(file string) string {
 	ext := filepath.Ext(file)
-	log.Println(ext)
 
 	if len(ext) > 1 {
 		i, ok := icons[ext[1:]]

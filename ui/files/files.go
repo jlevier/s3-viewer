@@ -8,6 +8,7 @@ import (
 	"s3-viewer/ui/components/icons"
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"golang.org/x/term"
@@ -112,7 +113,28 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
-			cmds = append(cmds, m.SetCurrentPage(types.Buckets, nil))
+			// At the root of the current bucket - return to buckets list
+			if m.GetCurrentPath() == "" {
+				cmds = append(cmds, m.SetCurrentPage(types.Buckets, nil))
+			} else {
+				// drilled into a folder inside of a bucket - go one folder up
+				p := strings.Split(m.GetCurrentPath(), "/")
+				cp := fmt.Sprintf("%s%s", strings.Join(p[:len(p)-2], "/"), "/")
+				if cp == "/" {
+					cp = ""
+				}
+
+				cmds = append(cmds, func() tea.Msg {
+					o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), cp)
+					model.isLoading = false
+					if err != nil {
+						return getFilesMsg{nil, err}
+					}
+
+					m.SetCurrentPath(cp)
+					return getFilesMsg{o, nil}
+				})
+			}
 		case "enter":
 			cmds = append(cmds, func() tea.Msg {
 				r := model.table.GetHighlightedRow()
