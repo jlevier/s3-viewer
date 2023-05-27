@@ -139,8 +139,15 @@ func (m *Model) renderColumn(data string, c Column, currentRow, currentCol int) 
 		style = style.Copy().Padding(0, 1, 0, 0)
 	}
 
-	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
 	dataFinal := data
+
+	// if data has folder path, strip off all folders but the last
+	folders := strings.Split(dataFinal, "/")
+	if cap(folders) > 1 {
+		dataFinal = folders[len(folders)-2]
+	}
+
+	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
 	calc := c.Width - 5
 	if len(data) > calc && calc > 0 {
 		dataFinal = fmt.Sprintf("%s...", data[:calc])
