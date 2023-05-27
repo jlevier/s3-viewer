@@ -4,6 +4,7 @@ import (
 	"os"
 	"s3-viewer/api"
 	"s3-viewer/ui/components/dialog"
+	"s3-viewer/ui/components/help"
 	spin "s3-viewer/ui/components/spinner"
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
@@ -133,14 +134,16 @@ func View(m *types.UiModel) string {
 			docStyle = docStyle.MaxHeight(height)
 		}
 
+		final := lipgloss.JoinVertical(lipgloss.Center, model.table.View(), help.GetBucketsHelp(false))
+
 		p := lipgloss.Place(
 			width, height,
 			lipgloss.Center, lipgloss.Center,
-			model.table.View(),
+			final,
 		)
 
 		return docStyle.Render(p)
 	}
 
-	return "YOU ARE NOW IN THE Buckets VIEW"
+	return ""
 }

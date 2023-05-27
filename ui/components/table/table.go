@@ -24,7 +24,8 @@ var (
 			BorderForeground(lipgloss.Color("240"))
 
 	footerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("205"))
+			Foreground(lipgloss.Color("#ffffff")).
+			Background(lipgloss.Color("205"))
 )
 
 type Column struct {
@@ -103,7 +104,7 @@ func (m *Model) renderRows() string {
 	}
 
 	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
-	h := lipgloss.NewStyle().Height(height - 5)
+	h := lipgloss.NewStyle().Height(height - 10)
 
 	return h.Render(lipgloss.JoinVertical(lipgloss.Center, s...))
 }
@@ -168,7 +169,7 @@ func (m *Model) GetHighlightedRow() *Row {
 
 func (m *Model) getVisibleRowCount() int {
 	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
-	calc := height - 4
+	calc := height - 6
 	lastRow := len(m.data)
 
 	if len(m.data) > calc {
