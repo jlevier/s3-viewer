@@ -24,8 +24,27 @@ var (
 			BorderForeground(lipgloss.Color("240"))
 
 	footerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ffffff")).
-			Background(lipgloss.Color("205"))
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#3C3836"))
+
+	footerPrefixStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#F25D93"))
+
+	footerNavStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#A550DF")).
+			Padding(0, 1)
+
+	footerPosStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#6124DF")).
+			Padding(0, 1)
+
+	footerPathStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#3C3836")).
+			Padding(0, 0, 0, 1)
 )
 
 type Column struct {
@@ -136,15 +155,31 @@ func (m *Model) renderFooter() string {
 		width += w.Width
 	}
 
-	left := m.footerInfo
-	right := make([]string, 0)
+	var left strings.Builder
+	var right strings.Builder
 
+	left.WriteString(footerPrefixStyle.Render(" .. "))
+	left.WriteString(footerPathStyle.Render(m.footerInfo))
+
+	/* nav */
+	var nav strings.Builder
 	if m.highlightedRowIndex > 0 {
-		right = append(right, "\uf062") // down arrow
+		nav.WriteString("\uf062") // up arrow
+	} else {
+		nav.WriteString(" ")
 	}
+
+	nav.WriteString(" ")
+
 	if m.highlightedRowIndex < len(m.data)-1 {
-		right = append(right, "\uf063") // up arrow
+		nav.WriteString(("\uf063")) // down arrow
+	} else {
+		nav.WriteString(" ")
 	}
+	right.WriteString(footerNavStyle.Render(nav.String()))
+	/* nav */
+
+	right.WriteString(footerPosStyle.Render(fmt.Sprintf("%v/%v", m.highlightedRowIndex+1, len(m.data))))
 
 	rightStyle := footerStyle.Copy().
 		AlignHorizontal(lipgloss.Right).
@@ -153,8 +188,8 @@ func (m *Model) renderFooter() string {
 	leftStyle := footerStyle.Copy().
 		Width(width / 2)
 
-	leftFinal := leftStyle.Render(left)
-	rightFinal := rightStyle.Render(strings.Join(right, " "))
+	leftFinal := leftStyle.Render(left.String())
+	rightFinal := rightStyle.Render(right.String())
 
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, leftFinal, rightFinal)
 }
