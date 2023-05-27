@@ -124,6 +124,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 					cp = ""
 				}
 
+				//TODO refactor this into a method so you can call on both enter and escape
 				cmds = append(cmds, func() tea.Msg {
 					o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), cp)
 					model.isLoading = false

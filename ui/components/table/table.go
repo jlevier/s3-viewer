@@ -52,6 +52,7 @@ func New(c []Column) *Model {
 
 func (m *Model) SetData(r []Row) {
 	m.data = r
+	m.highlightedRowIndex = 0
 }
 
 func (m *Model) SetFooterInfo(f string) {
