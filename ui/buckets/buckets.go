@@ -3,9 +3,11 @@ package buckets
 import (
 	"os"
 	"s3-viewer/api"
-	"s3-viewer/ui"
+	"s3-viewer/ui/components/dialog"
+	spin "s3-viewer/ui/components/spinner"
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -49,7 +51,7 @@ func Init(m *types.UiModel) tea.Cmd {
 	}
 
 	model = &bucketsModel{
-		spinner:   ui.GetSpinner(),
+		spinner:   spin.GetSpinner(),
 		isLoading: true,
 		table:     initTable(),
 	}
@@ -81,7 +83,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		model.buckets = msg.buckets
 		r := make([]table.Row, 0)
 		for _, b := range model.buckets {
-			r = append(r, table.Row{iconStyle.Render("\ue703"), *b.Name, b.CreationDate.String()})
+			r = append(r, table.Row{iconStyle.Render("\ue703"), *b.Name, b.CreationDate.Format(time.DateTime)})
 		}
 		model.table.SetData(r)
 
@@ -105,17 +107,18 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		cmds = append(cmds, cmd)
 	}
 
-	// Default commands
-	var sc tea.Cmd
-	model.spinner, sc = model.spinner.Update(msg)
-	cmds = append(cmds, sc)
+	if model.isLoading {
+		var sc tea.Cmd
+		model.spinner, sc = model.spinner.Update(msg)
+		cmds = append(cmds, sc)
+	}
 
 	return tea.Batch(cmds...)
 }
 
 func View(m *types.UiModel) string {
 	if model.isLoading {
-		return ui.GetLoadingDialog("Loading Buckets", model.spinner)
+		return dialog.GetLoadingDialog("Loading Buckets", model.spinner)
 	}
 
 	if model.buckets != nil {

@@ -1,4 +1,4 @@
-package ui
+package dialog
 
 import (
 	"fmt"
@@ -9,13 +9,16 @@ import (
 	"golang.org/x/term"
 )
 
-func GetSpinner() spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-
-	return s
-}
+var (
+	DialogBoxStyle = lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#874BFD")).
+		Padding(1, 0).
+		BorderTop(true).
+		BorderLeft(true).
+		BorderRight(true).
+		BorderBottom(true)
+)
 
 func GetLoadingDialog(msg string, s spinner.Model) string {
 	// Get terminal size and place dialog in the center

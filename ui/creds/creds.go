@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 	"s3-viewer/api"
-	"s3-viewer/ui"
+	"s3-viewer/ui/components/dialog"
+	spin "s3-viewer/ui/components/spinner"
 	"s3-viewer/ui/types"
 	"strings"
 
@@ -54,7 +55,7 @@ type credsModel struct {
 func initialModel() credsModel {
 	m := credsModel{
 		inputs:  make([]textinput.Model, 2),
-		spinner: ui.GetSpinner(),
+		spinner: spin.GetSpinner(),
 	}
 
 	var t textinput.Model
@@ -224,7 +225,7 @@ func View(m *types.UiModel) string {
 	p := lipgloss.Place(
 		width, height,
 		lipgloss.Center, lipgloss.Center,
-		ui.DialogBoxStyle.Render(b.String()),
+		dialog.DialogBoxStyle.Render(b.String()),
 		lipgloss.WithWhitespaceChars("Ш#"),
 		lipgloss.WithWhitespaceForeground(lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}))
 

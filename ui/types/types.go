@@ -22,12 +22,17 @@ type ChangeCurrentPageMsg struct {
 	CurrentBucket string
 }
 
+type ChangeCurrentPathMsg struct {
+	CurrentPath string
+}
+
 // This is the main model used for the overall UI and for
 // pages to pass information back and forth to each other.
 type UiModel struct {
 	Session       *session.Session
 	currentPage   CurrentPage
 	currentBucket string
+	currentPath   string
 }
 
 func GetInitialModel() *UiModel {
@@ -60,18 +65,34 @@ func (m *UiModel) GetCurrentBucket() string {
 	return m.currentBucket
 }
 
+func (m *UiModel) GetCurrentPath() string {
+	return m.currentPath
+}
+
 func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string) tea.Cmd {
-	m.currentPage = currentPage
 	if currentBucket != nil {
 		m.currentBucket = *currentBucket
 	} else {
 		m.currentBucket = ""
 	}
 
+	m.currentPath = ""
+
 	return func() tea.Msg {
+		m.currentPage = currentPage
 		return ChangeCurrentPageMsg{
 			CurrentPage:   m.currentPage,
 			CurrentBucket: m.currentBucket,
+		}
+	}
+}
+
+func (m *UiModel) SetCurrentPath(path string) tea.Cmd {
+	m.currentPath = path
+
+	return func() tea.Msg {
+		return ChangeCurrentPathMsg{
+			CurrentPath: m.currentPath,
 		}
 	}
 }
