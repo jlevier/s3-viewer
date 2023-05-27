@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"os"
 	"s3-viewer/api"
-	"s3-viewer/ui"
+	"s3-viewer/ui/components/dialog"
 	"s3-viewer/ui/components/icons"
+	spin "s3-viewer/ui/components/spinner"
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
 	"strings"
@@ -62,7 +63,7 @@ func Init(m *types.UiModel) tea.Cmd {
 	// }
 
 	model = &filesModel{
-		spinner:   ui.GetSpinner(),
+		spinner:   spin.GetSpinner(),
 		isLoading: true,
 		table:     initTable(),
 	}
@@ -170,7 +171,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 
 func View(m *types.UiModel) string {
 	if model.isLoading {
-		return ui.GetLoadingDialog(fmt.Sprintf("Loading Bucket %s", m.GetCurrentBucket()), model.spinner)
+		return dialog.GetLoadingDialog(fmt.Sprintf("Loading Bucket %s", m.GetCurrentBucket()), model.spinner)
 	}
 
 	if model.directories != nil || model.files != nil {
