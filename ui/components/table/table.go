@@ -24,7 +24,27 @@ var (
 			BorderForeground(lipgloss.Color("240"))
 
 	footerStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("205"))
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#3C3836"))
+
+	footerPrefixStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#F25D93"))
+
+	footerNavStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#A550DF")).
+			Padding(0, 1)
+
+	footerPosStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#6124DF")).
+			Padding(0, 1)
+
+	footerPathStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#3C3836")).
+			Padding(0, 0, 0, 1)
 )
 
 type Column struct {
@@ -103,7 +123,7 @@ func (m *Model) renderRows() string {
 	}
 
 	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
-	h := lipgloss.NewStyle().Height(height - 5)
+	h := lipgloss.NewStyle().Height(height - 10)
 
 	return h.Render(lipgloss.JoinVertical(lipgloss.Center, s...))
 }
@@ -119,8 +139,15 @@ func (m *Model) renderColumn(data string, c Column, currentRow, currentCol int) 
 		style = style.Copy().Padding(0, 1, 0, 0)
 	}
 
-	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
 	dataFinal := data
+
+	// if data has folder path, strip off all folders but the last
+	folders := strings.Split(dataFinal, "/")
+	if cap(folders) > 1 {
+		dataFinal = folders[len(folders)-2]
+	}
+
+	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
 	calc := c.Width - 5
 	if len(data) > calc && calc > 0 {
 		dataFinal = fmt.Sprintf("%s...", data[:calc])
@@ -135,15 +162,31 @@ func (m *Model) renderFooter() string {
 		width += w.Width
 	}
 
-	left := m.footerInfo
-	right := make([]string, 0)
+	var left strings.Builder
+	var right strings.Builder
 
+	left.WriteString(footerPrefixStyle.Render(" .. "))
+	left.WriteString(footerPathStyle.Render(m.footerInfo))
+
+	/* nav */
+	var nav strings.Builder
 	if m.highlightedRowIndex > 0 {
-		right = append(right, "\uf062") // down arrow
+		nav.WriteString("\uf062") // up arrow
+	} else {
+		nav.WriteString(" ")
 	}
+
+	nav.WriteString(" ")
+
 	if m.highlightedRowIndex < len(m.data)-1 {
-		right = append(right, "\uf063") // up arrow
+		nav.WriteString(("\uf063")) // down arrow
+	} else {
+		nav.WriteString(" ")
 	}
+	right.WriteString(footerNavStyle.Render(nav.String()))
+	/* nav */
+
+	right.WriteString(footerPosStyle.Render(fmt.Sprintf("%v/%v", m.highlightedRowIndex+1, len(m.data))))
 
 	rightStyle := footerStyle.Copy().
 		AlignHorizontal(lipgloss.Right).
@@ -152,8 +195,8 @@ func (m *Model) renderFooter() string {
 	leftStyle := footerStyle.Copy().
 		Width(width / 2)
 
-	leftFinal := leftStyle.Render(left)
-	rightFinal := rightStyle.Render(strings.Join(right, " "))
+	leftFinal := leftStyle.Render(left.String())
+	rightFinal := rightStyle.Render(right.String())
 
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, leftFinal, rightFinal)
 }
@@ -168,7 +211,7 @@ func (m *Model) GetHighlightedRow() *Row {
 
 func (m *Model) getVisibleRowCount() int {
 	_, height, _ := term.GetSize(int(os.Stdout.Fd()))
-	calc := height - 4
+	calc := height - 6
 	lastRow := len(m.data)
 
 	if len(m.data) > calc {

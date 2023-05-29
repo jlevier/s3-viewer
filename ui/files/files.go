@@ -5,6 +5,7 @@ import (
 	"os"
 	"s3-viewer/api"
 	"s3-viewer/ui/components/dialog"
+	"s3-viewer/ui/components/help"
 	"s3-viewer/ui/components/icons"
 	spin "s3-viewer/ui/components/spinner"
 	"s3-viewer/ui/components/table"
@@ -186,10 +187,12 @@ func View(m *types.UiModel) string {
 			docStyle = docStyle.MaxHeight(height)
 		}
 
+		final := lipgloss.JoinVertical(lipgloss.Center, model.table.View(), help.GetFilesHelp(false))
+
 		p := lipgloss.Place(
 			width, height,
 			lipgloss.Center, lipgloss.Center,
-			model.table.View(),
+			final,
 		)
 
 		return docStyle.Render(p)
