@@ -45,16 +45,6 @@ func (m Model) Init() tea.Cmd {
 		uiModel = types.GetInitialModel()
 	}
 
-	// TODO - need to refactor how the current page is being changed because this Init method
-	// is only being called once.  Should probably create a changeCurrentPageMsg that can bubble up to the Update
-	// method here
-	// cmds := make([]tea.Cmd, 3)
-	// cmds = append(cmds, buckets.Init(uiModel))
-	// cmds = append(cmds, files.Init(uiModel))
-	// cmds = append(cmds, creds.Init(uiModel))
-
-	// return tea.Batch(cmds...)
-
 	switch uiModel.GetCurrentPage() {
 	case types.Buckets:
 		return buckets.Init(uiModel)

@@ -58,6 +58,19 @@ func getFileRow(f *s3.Object) table.Row {
 	return table.Row{icons.GetIcon(*f.Key), *f.Key, fmt.Sprint(*f.Size), f.LastModified.String(), owner}
 }
 
+func createGetFilesMsg(m *types.UiModel, path string) func() tea.Msg {
+	return func() tea.Msg {
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), path)
+		model.isLoading = false
+		if err != nil {
+			return getFilesMsg{nil, err}
+		}
+
+		m.SetCurrentPath(path)
+		return getFilesMsg{o, nil}
+	}
+}
+
 func Init(m *types.UiModel) tea.Cmd {
 	// if model != nil {
 	// 	return nil
@@ -126,34 +139,11 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 					cp = ""
 				}
 
-				//TODO refactor this into a method so you can call on both enter and escape
-				cmds = append(cmds, func() tea.Msg {
-					o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), cp)
-					model.isLoading = false
-					if err != nil {
-						return getFilesMsg{nil, err}
-					}
-
-					m.SetCurrentPath(cp)
-					return getFilesMsg{o, nil}
-				})
+				cmds = append(cmds, createGetFilesMsg(m, cp))
 			}
 		case "enter":
-			cmds = append(cmds, func() tea.Msg {
-				r := model.table.GetHighlightedRow()
-				if r != nil {
-					o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), (*r)[1])
-					model.isLoading = false
-					if err != nil {
-						return getFilesMsg{nil, err}
-					}
-
-					m.SetCurrentPath((*r)[1])
-					return getFilesMsg{o, nil}
-				}
-
-				return nil
-			})
+			r := model.table.GetHighlightedRow()
+			cmds = append(cmds, createGetFilesMsg(m, (*r)[1]))
 		}
 
 		var cmd tea.Cmd
