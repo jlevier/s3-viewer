@@ -2,9 +2,11 @@ package table
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
@@ -60,14 +62,31 @@ type Model struct {
 	highlightedRowIndex int
 	firstVisibleRow     int
 	footerInfo          string
+
+	// Filter
+	hasFiltering    bool
+	currentFilter   string
+	isFilterVisible bool
+	filterInput     textinput.Model
 }
 
-func New(c []Column) *Model {
-	return &Model{
+func New(c []Column, hasFiltering bool) *Model {
+	m := Model{
 		columns:             c,
 		highlightedRowIndex: 0,
 		firstVisibleRow:     0,
+		hasFiltering:        hasFiltering,
 	}
+
+	if hasFiltering {
+		m.hasFiltering = hasFiltering
+		m.filterInput = textinput.New()
+		m.filterInput.Placeholder = "filter"
+		m.filterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+		m.filterInput.CursorStyle = m.filterInput.PromptStyle.Copy()
+	}
+
+	return &m
 }
 
 func (m *Model) SetData(r []Row) {
@@ -80,13 +99,24 @@ func (m *Model) SetFooterInfo(f string) {
 }
 
 func (m *Model) View() string {
+	filter := m.renderFilter()
 	h := m.renderHeader()
 	r := m.renderRows()
 	f := m.renderFooter()
 
-	j := lipgloss.JoinVertical(lipgloss.Center, h, r, f)
+	j := borderStyle.Render(
+		lipgloss.JoinVertical(lipgloss.Center, h, r, f))
+	jf := lipgloss.JoinVertical(lipgloss.Center, filter, j)
 
-	return borderStyle.Render(j)
+	return jf
+}
+
+func (m *Model) renderFilter() string {
+	if m.isFilterVisible {
+		return m.filterInput.View()
+	}
+
+	return ""
 }
 
 func (m *Model) renderHeader() string {
@@ -226,7 +256,22 @@ func (m *Model) getVisibleRowCount() int {
 	return lastRow
 }
 
+func (m *Model) IsFilterVisible() bool {
+	return m.isFilterVisible
+}
+
+func (m *Model) Init() tea.Cmd {
+	if m.hasFiltering {
+		log.Println("returning blink")
+		return textinput.Blink
+	}
+
+	return nil
+}
+
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	cmds := make([]tea.Cmd, 0)
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -239,6 +284,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.highlightedRowIndex < m.firstVisibleRow {
 				m.firstVisibleRow--
 			}
+
 		case "down":
 			if m.highlightedRowIndex < len(m.data)-1 {
 				m.highlightedRowIndex++
@@ -248,8 +294,27 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.highlightedRowIndex > m.getVisibleRowCount()+m.firstVisibleRow-1 {
 				m.firstVisibleRow++
 			}
+
+		case "esc":
+			if m.isFilterVisible {
+				m.currentFilter = ""
+				m.isFilterVisible = false
+			}
+
+		case "/":
+			if m.hasFiltering {
+				m.isFilterVisible = true
+				cmds = append(cmds, m.filterInput.Focus())
+			}
+		}
+
+		if m.isFilterVisible {
+			log.Println("filter is visible in update")
+			var filterCmd tea.Cmd
+			m.filterInput, filterCmd = m.filterInput.Update(msg)
+			cmds = append(cmds, filterCmd)
 		}
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }

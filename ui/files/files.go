@@ -46,7 +46,7 @@ func initTable() *table.Model {
 		{Name: "Owner", Width: 35},
 	}
 
-	return table.New(columns)
+	return table.New(columns, true)
 }
 
 func getFileRow(f *s3.Object) table.Row {
@@ -72,10 +72,6 @@ func createGetFilesMsg(m *types.UiModel, path string) func() tea.Msg {
 }
 
 func Init(m *types.UiModel) tea.Cmd {
-	// if model != nil {
-	// 	return nil
-	// }
-
 	model = &filesModel{
 		spinner:   spin.GetSpinner(),
 		isLoading: true,
@@ -84,6 +80,8 @@ func Init(m *types.UiModel) tea.Cmd {
 
 	cmds := make([]tea.Cmd, 0)
 	cmds = append(cmds, model.spinner.Tick)
+
+	cmds = append(cmds, model.table.Init())
 
 	cmds = append(cmds, func() tea.Msg {
 		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/")
@@ -126,6 +124,11 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		model.table.SetFooterInfo(fmt.Sprintf("%s/%s", m.GetCurrentBucket(), m.GetCurrentPath()))
 
 	case tea.KeyMsg:
+		// Filter is visible so allow the table to handle this command and hide the filter
+		if model.table.IsFilterVisible() {
+			break
+		}
+
 		switch msg.String() {
 		case "esc":
 			// At the root of the current bucket - return to buckets list
@@ -155,6 +158,12 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		var sc tea.Cmd
 		model.spinner, sc = model.spinner.Update(msg)
 		cmds = append(cmds, sc)
+	}
+
+	if model.table.IsFilterVisible() {
+		var fc tea.Cmd
+		model.table, fc = model.table.Update(msg)
+		cmds = append(cmds, fc)
 	}
 
 	return tea.Batch(cmds...)
