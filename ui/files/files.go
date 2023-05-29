@@ -80,7 +80,6 @@ func Init(m *types.UiModel) tea.Cmd {
 
 	cmds := make([]tea.Cmd, 0)
 	cmds = append(cmds, model.spinner.Tick)
-
 	cmds = append(cmds, model.table.Init())
 
 	cmds = append(cmds, func() tea.Msg {

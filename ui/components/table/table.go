@@ -2,7 +2,6 @@ package table
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -84,6 +83,7 @@ func New(c []Column, hasFiltering bool) *Model {
 		m.filterInput.Placeholder = "filter"
 		m.filterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 		m.filterInput.CursorStyle = m.filterInput.PromptStyle.Copy()
+		m.filterInput.CharLimit = 50
 	}
 
 	return &m
@@ -262,7 +262,6 @@ func (m *Model) IsFilterVisible() bool {
 
 func (m *Model) Init() tea.Cmd {
 	if m.hasFiltering {
-		log.Println("returning blink")
 		return textinput.Blink
 	}
 
@@ -304,16 +303,15 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		case "/":
 			if m.hasFiltering {
 				m.isFilterVisible = true
-				cmds = append(cmds, m.filterInput.Focus())
+				m.filterInput.Focus()
 			}
 		}
+	}
 
-		if m.isFilterVisible {
-			log.Println("filter is visible in update")
-			var filterCmd tea.Cmd
-			m.filterInput, filterCmd = m.filterInput.Update(msg)
-			cmds = append(cmds, filterCmd)
-		}
+	if m.isFilterVisible {
+		var filterCmd tea.Cmd
+		m.filterInput, filterCmd = m.filterInput.Update(msg)
+		cmds = append(cmds, filterCmd)
 	}
 
 	return m, tea.Batch(cmds...)

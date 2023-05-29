@@ -20,26 +20,6 @@ var (
 // must also be referenced here by the control to pass off page functionality.
 type Model struct{}
 
-// func getInitialModel() *types.UiModel {
-// 	ch := make(chan *api.SessionResponse)
-// 	go api.GetSession(ch)
-// 	resp := <-ch
-
-// 	if resp.Err != nil {
-// 		m := &types.UiModel{
-// 			Session: nil,
-// 		}
-// 		m.SetCurrentPage(types.Creds, nil)
-// 		return m
-// 	}
-
-// 	m := &types.UiModel{
-// 		Session: resp.Session,
-// 	}
-// 	m.SetCurrentPage(types.Buckets, nil)
-// 	return m
-// }
-
 func (m Model) Init() tea.Cmd {
 	if uiModel == nil {
 		uiModel = types.GetInitialModel()
