@@ -143,14 +143,19 @@ func (m *Model) renderColumn(data string, c Column, currentRow, currentCol int) 
 
 	// if data has folder path, strip off all folders but the last
 	folders := strings.Split(dataFinal, "/")
-	if cap(folders) > 1 {
-		dataFinal = folders[len(folders)-2]
+	if len(folders) > 1 {
+		// path ended with / so last item is empty
+		if folders[len(folders)-1] == "" {
+			dataFinal = folders[len(folders)-2]
+		} else {
+			dataFinal = folders[len(folders)-1]
+		}
 	}
 
 	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
 	calc := c.Width - 5
 	if len(data) > calc && calc > 0 {
-		dataFinal = fmt.Sprintf("%s...", data[:calc])
+		dataFinal = fmt.Sprintf("%s...", dataFinal[:calc])
 	}
 
 	return style.Render(dataFinal)
