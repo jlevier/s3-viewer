@@ -125,6 +125,9 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	case tea.KeyMsg:
 		// Filter is visible so allow the table to handle this command and hide the filter
 		if model.table.IsFilterVisible() {
+			var cmd tea.Cmd
+			model.table, cmd = model.table.Update(msg)
+			cmds = append(cmds, cmd)
 			break
 		}
 
@@ -143,6 +146,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 
 				cmds = append(cmds, createGetFilesMsg(m, cp))
 			}
+
 		case "enter":
 			r := model.table.GetHighlightedRow()
 			cmds = append(cmds, createGetFilesMsg(m, (*r)[1]))
@@ -160,9 +164,12 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	}
 
 	if model.table.IsFilterVisible() {
-		var fc tea.Cmd
-		model.table, fc = model.table.Update(msg)
-		cmds = append(cmds, fc)
+		// KeyMsg is handled above to you only want to forward any other type like BlinkMsg
+		if _, ok := msg.(tea.KeyMsg); !ok {
+			var fc tea.Cmd
+			model.table, fc = model.table.Update(msg)
+			cmds = append(cmds, fc)
+		}
 	}
 
 	return tea.Batch(cmds...)

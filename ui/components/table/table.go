@@ -48,7 +48,7 @@ var (
 			Padding(0, 0, 0, 1)
 
 	filterWrapperStyle = lipgloss.NewStyle().
-				Width(15).
+				Width(30).
 				AlignHorizontal(lipgloss.Left)
 )
 
@@ -88,6 +88,7 @@ func New(c []Column, hasFiltering bool) *Model {
 		m.filterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 		m.filterInput.CursorStyle = m.filterInput.PromptStyle.Copy()
 		m.filterInput.CharLimit = 50
+		m.filterInput.Width = 20
 	}
 
 	return &m
@@ -306,8 +307,10 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case "/":
 			if m.hasFiltering {
-				m.isFilterVisible = true
-				m.filterInput.Focus()
+				if !m.isFilterVisible {
+					m.isFilterVisible = true
+					return m, m.filterInput.Focus()
+				}
 			}
 		}
 	}
