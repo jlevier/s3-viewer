@@ -46,6 +46,10 @@ var (
 			Foreground(lipgloss.Color("#FFFFFF")).
 			Background(lipgloss.Color("#3C3836")).
 			Padding(0, 0, 0, 1)
+
+	filterWrapperStyle = lipgloss.NewStyle().
+				Width(15).
+				AlignHorizontal(lipgloss.Left)
 )
 
 type Column struct {
@@ -113,7 +117,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderFilter() string {
 	if m.isFilterVisible {
-		return m.filterInput.View()
+		return filterWrapperStyle.Render(m.filterInput.View())
 	}
 
 	return ""
