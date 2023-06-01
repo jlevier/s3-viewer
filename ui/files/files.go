@@ -2,6 +2,7 @@ package files
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"s3-viewer/api"
 	"s3-viewer/ui/components/dialog"
@@ -169,18 +170,24 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	}
 
 	if model.table.IsFilterVisible() {
-		// KeyMsg is handled above to you only want to forward any other type like BlinkMsg
+		// KeyMsg is handled above so you only want to forward any other type like BlinkMsg
 		if _, ok := msg.(tea.KeyMsg); !ok {
 			var fc tea.Cmd
 			model.table, fc = model.table.Update(msg)
 			cmds = append(cmds, fc)
 		}
+	} else {
+		// otherwise pass all messages down to the table
+		var fc tea.Cmd
+		model.table, fc = model.table.Update(msg)
+		cmds = append(cmds, fc)
 	}
 
 	return tea.Batch(cmds...)
 }
 
 func View(m *types.UiModel) string {
+	log.Println("VIEW being called")
 	if model.isLoading {
 		return dialog.GetLoadingDialog(fmt.Sprintf("Loading Bucket %s", m.GetCurrentBucket()), model.spinner)
 	}

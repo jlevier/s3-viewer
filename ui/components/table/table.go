@@ -5,6 +5,9 @@ import (
 	"os"
 	"strings"
 
+	spin "s3-viewer/ui/components/spinner"
+
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -29,6 +32,7 @@ var (
 			Background(lipgloss.Color("#3C3836"))
 
 	footerPrefixStyle = lipgloss.NewStyle().
+				Width(4).
 				Foreground(lipgloss.Color("#FFFFFF")).
 				Background(lipgloss.Color("#F25D93"))
 
@@ -44,13 +48,23 @@ var (
 
 	footerFilterStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#FFFFFF")).
-				Background(lipgloss.Color("#E3BE5F")).
+				Background(lipgloss.Color("#FCA17D")).
 				Padding(0, 1)
 
 	footerPathStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFFFF")).
 			Background(lipgloss.Color("#3C3836")).
 			Padding(0, 0, 0, 1)
+
+	footerLoadingIconStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#F25D93")).
+				Padding(0, 0, 0, 1)
+
+	footerLoadingTextStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#F25D93")).
+				Padding(0, 1, 0, 0)
 
 	filterWrapperStyle = lipgloss.NewStyle().
 				Width(30).
@@ -71,6 +85,10 @@ type Model struct {
 	firstVisibleRow     int
 	footerInfo          string
 
+	// Loading
+	spinner   spinner.Model
+	isLoading bool
+
 	// Filter
 	hasFiltering    bool
 	currentFilter   string
@@ -84,6 +102,7 @@ func New(c []Column, hasFiltering bool) *Model {
 		highlightedRowIndex: 0,
 		firstVisibleRow:     0,
 		hasFiltering:        hasFiltering,
+		spinner:             spin.GetFooterSpinner(),
 	}
 
 	if hasFiltering {
@@ -213,6 +232,11 @@ func (m *Model) renderFooter() string {
 	left.WriteString(footerPrefixStyle.Render(" .. "))
 	left.WriteString(footerPathStyle.Render(m.footerInfo))
 
+	if m.isLoading {
+		right.WriteString(footerLoadingIconStyle.Render(m.spinner.View()))
+		right.WriteString(footerLoadingTextStyle.Render("loading"))
+	}
+
 	if m.currentFilter != "" {
 		right.WriteString(footerFilterStyle.Render(fmt.Sprintf("\uf002 %s", m.currentFilter)))
 	}
@@ -279,11 +303,14 @@ func (m *Model) GetCurrentFilter() string {
 }
 
 func (m *Model) Init() tea.Cmd {
+	cmds := make([]tea.Cmd, 0)
+	cmds = append(cmds, m.spinner.Tick)
+
 	if m.hasFiltering {
-		return textinput.Blink
+		cmds = append(cmds, textinput.Blink)
 	}
 
-	return nil
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
@@ -330,6 +357,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case "enter":
 			if m.isFilterVisible {
+				m.isLoading = true
+				cmds = append(cmds, m.spinner.Tick)
 				m.currentFilter = m.filterInput.Value()
 				m.isFilterVisible = false
 			}
@@ -340,6 +369,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 		var filterCmd tea.Cmd
 		m.filterInput, filterCmd = m.filterInput.Update(msg)
 		cmds = append(cmds, filterCmd)
+	}
+
+	if m.isLoading {
+		var spinnerCmd tea.Cmd
+		m.spinner, spinnerCmd = m.spinner.Update(msg)
+		cmds = append(cmds, spinnerCmd)
 	}
 
 	return m, tea.Batch(cmds...)
