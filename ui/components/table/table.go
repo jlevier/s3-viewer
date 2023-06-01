@@ -42,6 +42,11 @@ var (
 			Background(lipgloss.Color("#6124DF")).
 			Padding(0, 1)
 
+	footerFilterStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#E3BE5F")).
+				Padding(0, 1)
+
 	footerPathStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFFFF")).
 			Background(lipgloss.Color("#3C3836")).
@@ -208,6 +213,10 @@ func (m *Model) renderFooter() string {
 	left.WriteString(footerPrefixStyle.Render(" .. "))
 	left.WriteString(footerPathStyle.Render(m.footerInfo))
 
+	if m.currentFilter != "" {
+		right.WriteString(footerFilterStyle.Render(fmt.Sprintf("\uf002 %s", m.currentFilter)))
+	}
+
 	/* nav */
 	var nav strings.Builder
 	if m.highlightedRowIndex > 0 {
@@ -265,6 +274,10 @@ func (m *Model) IsFilterVisible() bool {
 	return m.isFilterVisible
 }
 
+func (m *Model) GetCurrentFilter() string {
+	return m.currentFilter
+}
+
 func (m *Model) Init() tea.Cmd {
 	if m.hasFiltering {
 		return textinput.Blink
@@ -280,7 +293,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up":
-			if m.highlightedRowIndex > 0 {
+			if m.highlightedRowIndex > 0 && !m.isFilterVisible {
 				m.highlightedRowIndex--
 			}
 
@@ -290,7 +303,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			}
 
 		case "down":
-			if m.highlightedRowIndex < len(m.data)-1 {
+			if m.highlightedRowIndex < len(m.data)-1 && !m.isFilterVisible {
 				m.highlightedRowIndex++
 			}
 
@@ -303,6 +316,8 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.isFilterVisible {
 				m.currentFilter = ""
 				m.isFilterVisible = false
+			} else if m.currentFilter != "" {
+				m.currentFilter = ""
 			}
 
 		case "/":
@@ -311,6 +326,12 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 					m.isFilterVisible = true
 					return m, m.filterInput.Focus()
 				}
+			}
+
+		case "enter":
+			if m.isFilterVisible {
+				m.currentFilter = m.filterInput.Value()
+				m.isFilterVisible = false
 			}
 		}
 	}

@@ -133,6 +133,11 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 
 		switch msg.String() {
 		case "esc":
+			// If a filter is currently applied, do nothing and let table clear the filter
+			if model.table.GetCurrentFilter() != "" {
+				break
+			}
+
 			// At the root of the current bucket - return to buckets list
 			if m.GetCurrentPath() == "" {
 				cmds = append(cmds, m.SetCurrentPage(types.Buckets, nil))
@@ -192,7 +197,10 @@ func View(m *types.UiModel) string {
 			docStyle = docStyle.MaxHeight(height)
 		}
 
-		final := lipgloss.JoinVertical(lipgloss.Center, model.table.View(), help.GetFilesHelp(false))
+		final := lipgloss.JoinVertical(
+			lipgloss.Center,
+			model.table.View(),
+			help.GetFilesHelp(model.table.IsFilterVisible(), model.table.GetCurrentFilter()))
 
 		p := lipgloss.Place(
 			width, height,
