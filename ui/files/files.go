@@ -2,7 +2,6 @@ package files
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"s3-viewer/api"
 	"s3-viewer/ui/components/dialog"
@@ -187,7 +186,6 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 }
 
 func View(m *types.UiModel) string {
-	log.Println("VIEW being called")
 	if model.isLoading {
 		return dialog.GetLoadingDialog(fmt.Sprintf("Loading Bucket %s", m.GetCurrentBucket()), model.spinner)
 	}
