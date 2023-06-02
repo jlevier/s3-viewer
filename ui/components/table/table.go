@@ -5,6 +5,10 @@ import (
 	"os"
 	"strings"
 
+	spin "s3-viewer/ui/components/spinner"
+
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/term"
@@ -28,6 +32,7 @@ var (
 			Background(lipgloss.Color("#3C3836"))
 
 	footerPrefixStyle = lipgloss.NewStyle().
+				Width(4).
 				Foreground(lipgloss.Color("#FFFFFF")).
 				Background(lipgloss.Color("#F25D93"))
 
@@ -41,10 +46,29 @@ var (
 			Background(lipgloss.Color("#6124DF")).
 			Padding(0, 1)
 
+	footerFilterStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#FCA17D")).
+				Padding(0, 1)
+
 	footerPathStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFFFF")).
 			Background(lipgloss.Color("#3C3836")).
 			Padding(0, 0, 0, 1)
+
+	footerLoadingIconStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#F25D93")).
+				Padding(0, 0, 0, 1)
+
+	footerLoadingTextStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#F25D93")).
+				Padding(0, 1, 0, 0)
+
+	filterWrapperStyle = lipgloss.NewStyle().
+				Width(30).
+				AlignHorizontal(lipgloss.Left)
 )
 
 type Column struct {
@@ -60,19 +84,48 @@ type Model struct {
 	highlightedRowIndex int
 	firstVisibleRow     int
 	footerInfo          string
+
+	// Loading
+	spinner   spinner.Model
+	isLoading bool
+
+	// Filter
+	hasFiltering    bool
+	currentFilter   string
+	isFilterVisible bool
+	filterInput     textinput.Model
 }
 
-func New(c []Column) *Model {
-	return &Model{
+type FilterAppliedMsg struct {
+	Filter string
+}
+
+func New(c []Column, hasFiltering bool) *Model {
+	m := Model{
 		columns:             c,
 		highlightedRowIndex: 0,
 		firstVisibleRow:     0,
+		hasFiltering:        hasFiltering,
+		spinner:             spin.GetFooterSpinner(),
 	}
+
+	if hasFiltering {
+		m.hasFiltering = hasFiltering
+		m.filterInput = textinput.New()
+		m.filterInput.Placeholder = "filter"
+		m.filterInput.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+		m.filterInput.CursorStyle = m.filterInput.PromptStyle.Copy()
+		m.filterInput.CharLimit = 50
+		m.filterInput.Width = 20
+	}
+
+	return &m
 }
 
 func (m *Model) SetData(r []Row) {
 	m.data = r
 	m.highlightedRowIndex = 0
+	m.isLoading = false
 }
 
 func (m *Model) SetFooterInfo(f string) {
@@ -80,13 +133,24 @@ func (m *Model) SetFooterInfo(f string) {
 }
 
 func (m *Model) View() string {
+	filter := m.renderFilter()
 	h := m.renderHeader()
 	r := m.renderRows()
 	f := m.renderFooter()
 
-	j := lipgloss.JoinVertical(lipgloss.Center, h, r, f)
+	j := borderStyle.Render(
+		lipgloss.JoinVertical(lipgloss.Center, h, r, f))
+	jf := lipgloss.JoinVertical(lipgloss.Center, filter, j)
 
-	return borderStyle.Render(j)
+	return jf
+}
+
+func (m *Model) renderFilter() string {
+	if m.isFilterVisible {
+		return filterWrapperStyle.Render(m.filterInput.View())
+	}
+
+	return ""
 }
 
 func (m *Model) renderHeader() string {
@@ -154,7 +218,7 @@ func (m *Model) renderColumn(data string, c Column, currentRow, currentCol int) 
 
 	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
 	calc := c.Width - 5
-	if len(data) > calc && calc > 0 {
+	if len(dataFinal) > calc && calc > 0 {
 		dataFinal = fmt.Sprintf("%s...", dataFinal[:calc])
 	}
 
@@ -172,6 +236,15 @@ func (m *Model) renderFooter() string {
 
 	left.WriteString(footerPrefixStyle.Render(" .. "))
 	left.WriteString(footerPathStyle.Render(m.footerInfo))
+
+	if m.isLoading {
+		right.WriteString(footerLoadingIconStyle.Render(m.spinner.View()))
+		right.WriteString(footerLoadingTextStyle.Render("loading"))
+	}
+
+	if m.currentFilter != "" {
+		right.WriteString(footerFilterStyle.Render(fmt.Sprintf("\uf002 %s", m.currentFilter)))
+	}
 
 	/* nav */
 	var nav strings.Builder
@@ -226,12 +299,33 @@ func (m *Model) getVisibleRowCount() int {
 	return lastRow
 }
 
+func (m *Model) IsFilterVisible() bool {
+	return m.isFilterVisible
+}
+
+func (m *Model) GetCurrentFilter() string {
+	return m.currentFilter
+}
+
+func (m *Model) Init() tea.Cmd {
+	cmds := make([]tea.Cmd, 0)
+	cmds = append(cmds, m.spinner.Tick)
+
+	if m.hasFiltering {
+		cmds = append(cmds, textinput.Blink)
+	}
+
+	return tea.Batch(cmds...)
+}
+
 func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
+	cmds := make([]tea.Cmd, 0)
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "up":
-			if m.highlightedRowIndex > 0 {
+			if m.highlightedRowIndex > 0 && !m.isFilterVisible {
 				m.highlightedRowIndex--
 			}
 
@@ -239,8 +333,9 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.highlightedRowIndex < m.firstVisibleRow {
 				m.firstVisibleRow--
 			}
+
 		case "down":
-			if m.highlightedRowIndex < len(m.data)-1 {
+			if m.highlightedRowIndex < len(m.data)-1 && !m.isFilterVisible {
 				m.highlightedRowIndex++
 			}
 
@@ -248,8 +343,59 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			if m.highlightedRowIndex > m.getVisibleRowCount()+m.firstVisibleRow-1 {
 				m.firstVisibleRow++
 			}
+
+		case "esc":
+			if m.isFilterVisible {
+				m.isFilterVisible = false
+			} else if m.currentFilter != "" {
+				m.currentFilter = ""
+				m.filterInput.SetValue("")
+
+				cmds = append(
+					cmds,
+					func() tea.Msg {
+						return FilterAppliedMsg{
+							Filter: m.currentFilter,
+						}
+					})
+			}
+
+		case "/":
+			if m.hasFiltering {
+				if !m.isFilterVisible {
+					m.isFilterVisible = true
+					return m, m.filterInput.Focus()
+				}
+			}
+
+		case "enter":
+			if m.isFilterVisible {
+				m.isLoading = true
+				cmds = append(cmds, m.spinner.Tick)
+				m.currentFilter = m.filterInput.Value()
+				cmds = append(
+					cmds,
+					func() tea.Msg {
+						return FilterAppliedMsg{
+							Filter: m.currentFilter,
+						}
+					})
+				m.isFilterVisible = false
+			}
 		}
 	}
 
-	return m, nil
+	if m.isFilterVisible {
+		var filterCmd tea.Cmd
+		m.filterInput, filterCmd = m.filterInput.Update(msg)
+		cmds = append(cmds, filterCmd)
+	}
+
+	if m.isLoading {
+		var spinnerCmd tea.Cmd
+		m.spinner, spinnerCmd = m.spinner.Update(msg)
+		cmds = append(cmds, spinnerCmd)
+	}
+
+	return m, tea.Batch(cmds...)
 }

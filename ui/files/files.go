@@ -11,6 +11,7 @@ import (
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"golang.org/x/term"
@@ -46,7 +47,7 @@ func initTable() *table.Model {
 		{Name: "Owner", Width: 35},
 	}
 
-	return table.New(columns)
+	return table.New(columns, true)
 }
 
 func getFileRow(f *s3.Object) table.Row {
@@ -55,12 +56,18 @@ func getFileRow(f *s3.Object) table.Row {
 		owner = *f.Owner.DisplayName
 	}
 
-	return table.Row{icons.GetIcon(*f.Key), *f.Key, fmt.Sprint(*f.Size), f.LastModified.String(), owner}
+	return table.Row{
+		icons.GetIcon(*f.Key),
+		*f.Key,
+		fmt.Sprint(*f.Size),
+		f.LastModified.Format(time.DateTime),
+		owner,
+	}
 }
 
-func createGetFilesMsg(m *types.UiModel, path string) func() tea.Msg {
+func createGetFilesMsg(m *types.UiModel, path, filter string) func() tea.Msg {
 	return func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), path)
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), path, filter)
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -72,10 +79,6 @@ func createGetFilesMsg(m *types.UiModel, path string) func() tea.Msg {
 }
 
 func Init(m *types.UiModel) tea.Cmd {
-	// if model != nil {
-	// 	return nil
-	// }
-
 	model = &filesModel{
 		spinner:   spin.GetSpinner(),
 		isLoading: true,
@@ -84,9 +87,10 @@ func Init(m *types.UiModel) tea.Cmd {
 
 	cmds := make([]tea.Cmd, 0)
 	cmds = append(cmds, model.spinner.Tick)
+	cmds = append(cmds, model.table.Init())
 
 	cmds = append(cmds, func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/")
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/", "")
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -125,9 +129,25 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		model.table.SetData(r)
 		model.table.SetFooterInfo(fmt.Sprintf("%s/%s", m.GetCurrentBucket(), m.GetCurrentPath()))
 
+	case table.FilterAppliedMsg:
+		cmds = append(cmds, createGetFilesMsg(m, m.GetCurrentPath(), msg.Filter))
+
 	case tea.KeyMsg:
+		// Filter is visible so allow the table to handle this command and hide the filter
+		if model.table.IsFilterVisible() {
+			var cmd tea.Cmd
+			model.table, cmd = model.table.Update(msg)
+			cmds = append(cmds, cmd)
+			break
+		}
+
 		switch msg.String() {
 		case "esc":
+			// If a filter is currently applied, do nothing and let table clear the filter
+			if model.table.GetCurrentFilter() != "" {
+				break
+			}
+
 			// At the root of the current bucket - return to buckets list
 			if m.GetCurrentPath() == "" {
 				cmds = append(cmds, m.SetCurrentPage(types.Buckets, nil))
@@ -139,22 +159,38 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 					cp = ""
 				}
 
-				cmds = append(cmds, createGetFilesMsg(m, cp))
+				cmds = append(cmds, createGetFilesMsg(m, cp, ""))
 			}
+
 		case "enter":
 			r := model.table.GetHighlightedRow()
-			cmds = append(cmds, createGetFilesMsg(m, (*r)[1]))
+			cmds = append(cmds, createGetFilesMsg(m, (*r)[1], ""))
 		}
 
-		var cmd tea.Cmd
-		model.table, cmd = model.table.Update(msg)
-		cmds = append(cmds, cmd)
+		// Don't think this is needed anymoe becuase handled below (line 184)
+		// var cmd tea.Cmd
+		// model.table, cmd = model.table.Update(msg)
+		// cmds = append(cmds, cmd)
 	}
 
 	if model.isLoading {
 		var sc tea.Cmd
 		model.spinner, sc = model.spinner.Update(msg)
 		cmds = append(cmds, sc)
+	}
+
+	if model.table.IsFilterVisible() {
+		// KeyMsg is handled above so you only want to forward any other type like BlinkMsg
+		if _, ok := msg.(tea.KeyMsg); !ok {
+			var fc tea.Cmd
+			model.table, fc = model.table.Update(msg)
+			cmds = append(cmds, fc)
+		}
+	} else {
+		// otherwise pass all messages down to the table
+		var fc tea.Cmd
+		model.table, fc = model.table.Update(msg)
+		cmds = append(cmds, fc)
 	}
 
 	return tea.Batch(cmds...)
@@ -177,7 +213,10 @@ func View(m *types.UiModel) string {
 			docStyle = docStyle.MaxHeight(height)
 		}
 
-		final := lipgloss.JoinVertical(lipgloss.Center, model.table.View(), help.GetFilesHelp(false))
+		final := lipgloss.JoinVertical(
+			lipgloss.Center,
+			model.table.View(),
+			help.GetFilesHelp(model.table.IsFilterVisible(), model.table.GetCurrentFilter()))
 
 		p := lipgloss.Place(
 			width, height,

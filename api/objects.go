@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
@@ -8,10 +10,11 @@ import (
 // "Objects" is the name that s3 gives to anything in a bucket.  This includes "directories" and files.
 // Directories is quoted here because they do not distinguish between directories and files.  So you might encounter
 // an Object whose value is /foo/bar/ as well as another that is file.json.
-func GetObjects(session *session.Session, bucket, directory string) (*s3.ListObjectsV2Output, error) {
+func GetObjects(session *session.Session, bucket, directory, filter string) (*s3.ListObjectsV2Output, error) {
 	var prefix *string
 	if directory != "/" {
-		prefix = &directory
+		directoryAndFilter := fmt.Sprintf("%s%s", directory, filter)
+		prefix = &directoryAndFilter
 	}
 	delimiter := "/"
 

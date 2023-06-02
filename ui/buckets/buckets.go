@@ -43,7 +43,7 @@ func initTable() *table.Model {
 		{Name: "Creation Date", Width: 35},
 	}
 
-	return table.New(columns)
+	return table.New(columns, false)
 }
 
 func Init(m *types.UiModel) tea.Cmd {
