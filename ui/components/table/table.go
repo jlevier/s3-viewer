@@ -96,6 +96,10 @@ type Model struct {
 	filterInput     textinput.Model
 }
 
+type FilterAppliedMsg struct {
+	Filter string
+}
+
 func New(c []Column, hasFiltering bool) *Model {
 	m := Model{
 		columns:             c,
@@ -121,6 +125,7 @@ func New(c []Column, hasFiltering bool) *Model {
 func (m *Model) SetData(r []Row) {
 	m.data = r
 	m.highlightedRowIndex = 0
+	m.isLoading = false
 }
 
 func (m *Model) SetFooterInfo(f string) {
@@ -213,7 +218,7 @@ func (m *Model) renderColumn(data string, c Column, currentRow, currentCol int) 
 
 	// If data is too large for the column, to prevent wrapping, truncate and add ellipses
 	calc := c.Width - 5
-	if len(data) > calc && calc > 0 {
+	if len(dataFinal) > calc && calc > 0 {
 		dataFinal = fmt.Sprintf("%s...", dataFinal[:calc])
 	}
 
@@ -341,10 +346,18 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case "esc":
 			if m.isFilterVisible {
-				m.currentFilter = ""
 				m.isFilterVisible = false
 			} else if m.currentFilter != "" {
 				m.currentFilter = ""
+				m.filterInput.SetValue("")
+
+				cmds = append(
+					cmds,
+					func() tea.Msg {
+						return FilterAppliedMsg{
+							Filter: m.currentFilter,
+						}
+					})
 			}
 
 		case "/":
@@ -360,6 +373,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 				m.isLoading = true
 				cmds = append(cmds, m.spinner.Tick)
 				m.currentFilter = m.filterInput.Value()
+				cmds = append(
+					cmds,
+					func() tea.Msg {
+						return FilterAppliedMsg{
+							Filter: m.currentFilter,
+						}
+					})
 				m.isFilterVisible = false
 			}
 		}

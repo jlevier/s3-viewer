@@ -11,6 +11,7 @@ import (
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"golang.org/x/term"
@@ -55,12 +56,18 @@ func getFileRow(f *s3.Object) table.Row {
 		owner = *f.Owner.DisplayName
 	}
 
-	return table.Row{icons.GetIcon(*f.Key), *f.Key, fmt.Sprint(*f.Size), f.LastModified.String(), owner}
+	return table.Row{
+		icons.GetIcon(*f.Key),
+		*f.Key,
+		fmt.Sprint(*f.Size),
+		f.LastModified.Format(time.DateTime),
+		owner,
+	}
 }
 
-func createGetFilesMsg(m *types.UiModel, path string) func() tea.Msg {
+func createGetFilesMsg(m *types.UiModel, path, filter string) func() tea.Msg {
 	return func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), path)
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), path, filter)
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -83,7 +90,7 @@ func Init(m *types.UiModel) tea.Cmd {
 	cmds = append(cmds, model.table.Init())
 
 	cmds = append(cmds, func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/")
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/", "")
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -122,6 +129,9 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		model.table.SetData(r)
 		model.table.SetFooterInfo(fmt.Sprintf("%s/%s", m.GetCurrentBucket(), m.GetCurrentPath()))
 
+	case table.FilterAppliedMsg:
+		cmds = append(cmds, createGetFilesMsg(m, m.GetCurrentPath(), msg.Filter))
+
 	case tea.KeyMsg:
 		// Filter is visible so allow the table to handle this command and hide the filter
 		if model.table.IsFilterVisible() {
@@ -149,17 +159,18 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 					cp = ""
 				}
 
-				cmds = append(cmds, createGetFilesMsg(m, cp))
+				cmds = append(cmds, createGetFilesMsg(m, cp, ""))
 			}
 
 		case "enter":
 			r := model.table.GetHighlightedRow()
-			cmds = append(cmds, createGetFilesMsg(m, (*r)[1]))
+			cmds = append(cmds, createGetFilesMsg(m, (*r)[1], ""))
 		}
 
-		var cmd tea.Cmd
-		model.table, cmd = model.table.Update(msg)
-		cmds = append(cmds, cmd)
+		// Don't think this is needed anymoe becuase handled below (line 184)
+		// var cmd tea.Cmd
+		// model.table, cmd = model.table.Update(msg)
+		// cmds = append(cmds, cmd)
 	}
 
 	if model.isLoading {
