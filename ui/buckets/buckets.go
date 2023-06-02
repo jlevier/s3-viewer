@@ -134,7 +134,7 @@ func View(m *types.UiModel) string {
 			docStyle = docStyle.MaxHeight(height)
 		}
 
-		final := lipgloss.JoinVertical(lipgloss.Center, model.table.View(), help.GetBucketsHelp(false))
+		final := lipgloss.JoinVertical(lipgloss.Center, model.table.View(), help.GetBucketsHelp())
 
 		p := lipgloss.Place(
 			width, height,
