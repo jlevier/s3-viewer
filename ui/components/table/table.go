@@ -41,6 +41,11 @@ var (
 			Background(lipgloss.Color("#A550DF")).
 			Padding(0, 1)
 
+	footerPagingStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#5CC1F7")).
+				Padding(0, 1)
+
 	footerPosStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FFFFFF")).
 			Background(lipgloss.Color("#6124DF")).
@@ -94,10 +99,22 @@ type Model struct {
 	currentFilter   string
 	isFilterVisible bool
 	filterInput     textinput.Model
+
+	// Paging
+	hasNextPage      bool
+	currentPageIndex int
 }
 
 type FilterAppliedMsg struct {
 	Filter string
+}
+
+type NextPageMsg struct {
+	CurrentPageIndex int
+}
+
+type PrevPageMsg struct {
+	CurrentPageIndex int
 }
 
 func New(c []Column, hasFiltering bool) *Model {
@@ -126,6 +143,10 @@ func (m *Model) SetData(r []Row) {
 	m.data = r
 	m.highlightedRowIndex = 0
 	m.isLoading = false
+}
+
+func (m *Model) SetHasNextPage(hasNextPage bool) {
+	m.hasNextPage = hasNextPage
 }
 
 func (m *Model) SetFooterInfo(f string) {
@@ -246,23 +267,9 @@ func (m *Model) renderFooter() string {
 		right.WriteString(footerFilterStyle.Render(fmt.Sprintf("\uf002 %s", m.currentFilter)))
 	}
 
-	/* nav */
-	var nav strings.Builder
-	if m.highlightedRowIndex > 0 {
-		nav.WriteString("\uf062") // up arrow
-	} else {
-		nav.WriteString(" ")
-	}
+	right.WriteString(m.renderPagingFooter())
 
-	nav.WriteString(" ")
-
-	if m.highlightedRowIndex < len(m.data)-1 {
-		nav.WriteString(("\uf063")) // down arrow
-	} else {
-		nav.WriteString(" ")
-	}
-	right.WriteString(footerNavStyle.Render(nav.String()))
-	/* nav */
+	right.WriteString(footerNavStyle.Render(m.renderNavFooter()))
 
 	right.WriteString(footerPosStyle.Render(fmt.Sprintf("%v/%v", m.highlightedRowIndex+1, len(m.data))))
 
@@ -277,6 +284,43 @@ func (m *Model) renderFooter() string {
 	rightFinal := rightStyle.Render(right.String())
 
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, leftFinal, rightFinal)
+}
+
+func (m *Model) renderNavFooter() string {
+	var nav strings.Builder
+
+	if m.highlightedRowIndex > 0 {
+		nav.WriteString("\uf062") // up arrow
+	} else {
+		nav.WriteString(" ")
+	}
+
+	nav.WriteString(" ")
+
+	if m.highlightedRowIndex < len(m.data)-1 {
+		nav.WriteString("\uf063") // down arrow
+	} else {
+		nav.WriteString(" ")
+	}
+
+	return nav.String()
+}
+
+func (m *Model) renderPagingFooter() string {
+	chars := make([]string, 0)
+
+	chars = append(chars, "\uf405")
+	chars = append(chars, fmt.Sprintf("%v", m.currentPageIndex+1))
+
+	if m.currentPageIndex > 0 {
+		chars = append(chars, "\uf04a") // left arrow
+	}
+
+	if m.hasNextPage {
+		chars = append(chars, "\uf04e") // right arrow
+	}
+
+	return footerPagingStyle.Render(strings.Join(chars, " "))
 }
 
 func (m *Model) GetHighlightedRow() *Row {
@@ -342,6 +386,30 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			// See if you're past the end and need to shift the displayed rows up by one
 			if m.highlightedRowIndex > m.getVisibleRowCount()+m.firstVisibleRow-1 {
 				m.firstVisibleRow++
+			}
+
+		case "right":
+			if m.hasNextPage {
+				cmds = append(
+					cmds,
+					func() tea.Msg {
+						m.currentPageIndex++
+						return NextPageMsg{
+							CurrentPageIndex: m.currentPageIndex - 1,
+						}
+					})
+			}
+
+		case "left":
+			if m.currentPageIndex > 0 {
+				cmds = append(
+					cmds,
+					func() tea.Msg {
+						m.currentPageIndex--
+						return PrevPageMsg{
+							CurrentPageIndex: m.currentPageIndex + 1,
+						}
+					})
 			}
 
 		case "esc":
