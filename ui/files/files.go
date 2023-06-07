@@ -153,6 +153,10 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 	case table.PrevPageMsg:
 		// pop off the last continuation token
 		model.continuationTokens = model.continuationTokens[:len(model.continuationTokens)-1]
+		var ct *string
+		if msg.CurrentPageIndex > 0 {
+			ct = model.continuationTokens[msg.CurrentPageIndex-1]
+		}
 
 		cmds = append(
 			cmds,
@@ -160,7 +164,7 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 				m,
 				m.GetCurrentPath(),
 				model.table.GetCurrentFilter(),
-				model.continuationTokens[msg.CurrentPageIndex]))
+				ct))
 
 	case tea.KeyMsg:
 		// Filter is visible so allow the table to handle this command and hide the filter

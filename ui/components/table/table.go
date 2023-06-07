@@ -390,6 +390,7 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case "right":
 			if m.hasNextPage {
+				m.isLoading = true
 				cmds = append(
 					cmds,
 					func() tea.Msg {
@@ -402,12 +403,13 @@ func (m *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 
 		case "left":
 			if m.currentPageIndex > 0 {
+				m.isLoading = true
 				cmds = append(
 					cmds,
 					func() tea.Msg {
 						m.currentPageIndex--
 						return PrevPageMsg{
-							CurrentPageIndex: m.currentPageIndex + 1,
+							CurrentPageIndex: m.currentPageIndex,
 						}
 					})
 			}
