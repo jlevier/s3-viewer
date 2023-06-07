@@ -26,11 +26,12 @@ var (
 )
 
 type filesModel struct {
-	directories []string
-	files       []*s3.Object
-	spinner     spinner.Model
-	isLoading   bool
-	table       *table.Model
+	directories        []string
+	files              []*s3.Object
+	spinner            spinner.Model
+	isLoading          bool
+	table              *table.Model
+	continuationTokens []*string // Used for current, next, previous page
 }
 
 type getFilesMsg struct {
@@ -65,9 +66,9 @@ func getFileRow(f *s3.Object) table.Row {
 	}
 }
 
-func createGetFilesMsg(m *types.UiModel, path, filter string) func() tea.Msg {
+func createGetFilesMsg(m *types.UiModel, path, filter string, continuationToken *string) func() tea.Msg {
 	return func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), path, filter)
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), path, filter, continuationToken)
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -80,9 +81,10 @@ func createGetFilesMsg(m *types.UiModel, path, filter string) func() tea.Msg {
 
 func Init(m *types.UiModel) tea.Cmd {
 	model = &filesModel{
-		spinner:   spin.GetSpinner(),
-		isLoading: true,
-		table:     initTable(),
+		spinner:            spin.GetSpinner(),
+		isLoading:          true,
+		table:              initTable(),
+		continuationTokens: make([]*string, 0),
 	}
 
 	cmds := make([]tea.Cmd, 0)
@@ -90,7 +92,7 @@ func Init(m *types.UiModel) tea.Cmd {
 	cmds = append(cmds, model.table.Init())
 
 	cmds = append(cmds, func() tea.Msg {
-		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/", "")
+		o, err := api.GetObjects(m.Session, m.GetCurrentBucket(), "/", "", nil)
 		model.isLoading = false
 		if err != nil {
 			return getFilesMsg{nil, err}
@@ -117,6 +119,13 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		}
 		model.files = msg.objects.Contents
 
+		if msg.objects.NextContinuationToken != nil {
+			model.continuationTokens = append(model.continuationTokens, msg.objects.NextContinuationToken)
+			model.table.SetHasNextPage(true)
+		} else {
+			model.table.SetHasNextPage(false)
+		}
+
 		r := make([]table.Row, 0)
 		for _, d := range model.directories {
 			r = append(r, table.Row{icons.GetDirectoryIcon(), d, "", "", ""})
@@ -130,7 +139,32 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 		model.table.SetFooterInfo(fmt.Sprintf("%s/%s", m.GetCurrentBucket(), m.GetCurrentPath()))
 
 	case table.FilterAppliedMsg:
-		cmds = append(cmds, createGetFilesMsg(m, m.GetCurrentPath(), msg.Filter))
+		cmds = append(cmds, createGetFilesMsg(m, m.GetCurrentPath(), msg.Filter, nil))
+
+	case table.NextPageMsg:
+		cmds = append(
+			cmds,
+			createGetFilesMsg(
+				m,
+				m.GetCurrentPath(),
+				model.table.GetCurrentFilter(),
+				model.continuationTokens[msg.CurrentPageIndex]))
+
+	case table.PrevPageMsg:
+		// pop off the last continuation token
+		model.continuationTokens = model.continuationTokens[:len(model.continuationTokens)-1]
+		var ct *string
+		if msg.CurrentPageIndex > 0 {
+			ct = model.continuationTokens[msg.CurrentPageIndex-1]
+		}
+
+		cmds = append(
+			cmds,
+			createGetFilesMsg(
+				m,
+				m.GetCurrentPath(),
+				model.table.GetCurrentFilter(),
+				ct))
 
 	case tea.KeyMsg:
 		// Filter is visible so allow the table to handle this command and hide the filter
@@ -159,12 +193,12 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 					cp = ""
 				}
 
-				cmds = append(cmds, createGetFilesMsg(m, cp, ""))
+				cmds = append(cmds, createGetFilesMsg(m, cp, "", nil))
 			}
 
 		case "enter":
 			r := model.table.GetHighlightedRow()
-			cmds = append(cmds, createGetFilesMsg(m, (*r)[1], ""))
+			cmds = append(cmds, createGetFilesMsg(m, (*r)[1], "", nil))
 		}
 
 		// Don't think this is needed anymoe becuase handled below (line 184)
