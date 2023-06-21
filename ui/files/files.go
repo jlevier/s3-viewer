@@ -10,6 +10,7 @@ import (
 	spin "s3-viewer/ui/components/spinner"
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
+	"s3-viewer/ui/utils"
 	"strings"
 	"time"
 
@@ -60,7 +61,7 @@ func getFileRow(f *s3.Object) table.Row {
 	return table.Row{
 		icons.GetIcon(*f.Key),
 		*f.Key,
-		fmt.Sprint(*f.Size),
+		utils.GetFriendlyByteDisplay(*f.Size),
 		f.LastModified.Format(time.DateTime),
 		owner,
 	}
