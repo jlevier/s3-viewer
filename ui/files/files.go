@@ -11,7 +11,6 @@ import (
 	"s3-viewer/ui/components/table"
 	"s3-viewer/ui/types"
 	"s3-viewer/ui/utils"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -110,62 +109,16 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case getFilesMsg:
-		if msg.err != nil {
-			panic(msg.err) //TODO do something actually meaningful here
-		}
-
-		model.directories = make([]string, len(msg.objects.CommonPrefixes))
-		for i, p := range msg.objects.CommonPrefixes {
-			model.directories[i] = *p.Prefix
-		}
-		model.files = msg.objects.Contents
-
-		if msg.objects.NextContinuationToken != nil {
-			model.continuationTokens = append(model.continuationTokens, msg.objects.NextContinuationToken)
-			model.table.SetHasNextPage(true)
-		} else {
-			model.table.SetHasNextPage(false)
-		}
-
-		r := make([]table.Row, 0)
-		for _, d := range model.directories {
-			r = append(r, table.Row{icons.GetDirectoryIcon(), d, "", "", ""})
-		}
-		if model.files != nil {
-			for _, f := range model.files {
-				r = append(r, getFileRow(f))
-			}
-		}
-		model.table.SetData(r)
-		model.table.SetFooterInfo(fmt.Sprintf("%s/%s", m.GetCurrentBucket(), m.GetCurrentPath()))
+		handleGetFilesMsg(m, msg)
 
 	case table.FilterAppliedMsg:
-		cmds = append(cmds, createGetFilesMsg(m, m.GetCurrentPath(), msg.Filter, nil))
+		handleFilterAppliedMsg(m, msg, &cmds)
 
 	case table.NextPageMsg:
-		cmds = append(
-			cmds,
-			createGetFilesMsg(
-				m,
-				m.GetCurrentPath(),
-				model.table.GetCurrentFilter(),
-				model.continuationTokens[msg.CurrentPageIndex]))
+		handleNextPageMsg(m, msg, &cmds)
 
 	case table.PrevPageMsg:
-		// pop off the last continuation token
-		model.continuationTokens = model.continuationTokens[:len(model.continuationTokens)-1]
-		var ct *string
-		if msg.CurrentPageIndex > 0 {
-			ct = model.continuationTokens[msg.CurrentPageIndex-1]
-		}
-
-		cmds = append(
-			cmds,
-			createGetFilesMsg(
-				m,
-				m.GetCurrentPath(),
-				model.table.GetCurrentFilter(),
-				ct))
+		handlePrevPageMsg(m, msg, &cmds)
 
 	case tea.KeyMsg:
 		// Filter is visible so allow the table to handle this command and hide the filter
@@ -183,29 +136,11 @@ func Update(m *types.UiModel, msg tea.Msg) tea.Cmd {
 				break
 			}
 
-			// At the root of the current bucket - return to buckets list
-			if m.GetCurrentPath() == "" {
-				cmds = append(cmds, m.SetCurrentPage(types.Buckets, nil))
-			} else {
-				// drilled into a folder inside of a bucket - go one folder up
-				p := strings.Split(m.GetCurrentPath(), "/")
-				cp := fmt.Sprintf("%s%s", strings.Join(p[:len(p)-2], "/"), "/")
-				if cp == "/" {
-					cp = ""
-				}
-
-				cmds = append(cmds, createGetFilesMsg(m, cp, "", nil))
-			}
+			handleEscKeyMsg(m, msg, &cmds)
 
 		case "enter":
-			r := model.table.GetHighlightedRow()
-			cmds = append(cmds, createGetFilesMsg(m, (*r)[1], "", nil))
+			handleEnterKeyMsg(m, msg, &cmds)
 		}
-
-		// Don't think this is needed anymoe becuase handled below (line 184)
-		// var cmd tea.Cmd
-		// model.table, cmd = model.table.Update(msg)
-		// cmds = append(cmds, cmd)
 	}
 
 	if model.isLoading {
