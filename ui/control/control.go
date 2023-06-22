@@ -3,6 +3,7 @@ package control
 import (
 	"s3-viewer/ui/buckets"
 	"s3-viewer/ui/creds"
+	"s3-viewer/ui/file"
 	"s3-viewer/ui/files"
 	"s3-viewer/ui/types"
 
@@ -30,6 +31,8 @@ func (m Model) Init() tea.Cmd {
 		return buckets.Init(uiModel)
 	case types.Files:
 		return files.Init(uiModel)
+	case types.File:
+		return file.Init(uiModel)
 	default:
 		return creds.Init(uiModel)
 	}
@@ -49,6 +52,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, buckets.Init(uiModel)
 		case types.Files:
 			return m, files.Init(uiModel)
+		case types.File:
+			return m, file.Init(uiModel)
 		default:
 			return m, creds.Init(uiModel)
 		}
@@ -59,6 +64,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, buckets.Update(uiModel, msg)
 	case types.Files:
 		return m, files.Update(uiModel, msg)
+	case types.File:
+		return m, file.Update(uiModel, msg)
 	default:
 		return m, creds.Update(uiModel, msg)
 	}
@@ -70,6 +77,8 @@ func (m Model) View() string {
 		return buckets.View(uiModel)
 	case types.Files:
 		return files.View(uiModel)
+	case types.File:
+		return file.View(uiModel)
 	default:
 		return creds.View(uiModel)
 	}

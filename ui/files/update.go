@@ -90,5 +90,12 @@ func handleEscKeyMsg(m *types.UiModel, msg tea.KeyMsg, cmds *[]tea.Cmd) {
 
 func handleEnterKeyMsg(m *types.UiModel, msg tea.KeyMsg, cmds *[]tea.Cmd) {
 	r := model.table.GetHighlightedRow()
-	*cmds = append(*cmds, createGetFilesMsg(m, (*r)[1], "", nil))
+
+	if (*r)[0] != icons.GetDirectoryIcon() {
+		b := m.GetCurrentBucket()
+		m.SetCurrentFile((*r)[1])
+		*cmds = append(*cmds, m.SetCurrentPage(types.File, &b))
+	} else {
+		*cmds = append(*cmds, createGetFilesMsg(m, (*r)[1], "", nil))
+	}
 }

@@ -11,6 +11,7 @@ const (
 	Creds   CurrentPage = "creds"
 	Buckets             = "buckets"
 	Files               = "files"
+	File                = "file"
 )
 
 type CurrentPage string
@@ -26,6 +27,10 @@ type ChangeCurrentPathMsg struct {
 	CurrentPath string
 }
 
+type ChangeCurrentFileMsg struct {
+	CurrentFile string
+}
+
 // This is the main model used for the overall UI and for
 // pages to pass information back and forth to each other.
 type UiModel struct {
@@ -33,6 +38,7 @@ type UiModel struct {
 	currentPage   CurrentPage
 	currentBucket string
 	currentPath   string
+	currentFile   string
 }
 
 func GetInitialModel() *UiModel {
@@ -69,6 +75,10 @@ func (m *UiModel) GetCurrentPath() string {
 	return m.currentPath
 }
 
+func (m *UiModel) GetCurrentFile() string {
+	return m.currentFile
+}
+
 func (m *UiModel) SetCurrentPage(currentPage CurrentPage, currentBucket *string) tea.Cmd {
 	if currentBucket != nil {
 		m.currentBucket = *currentBucket
@@ -93,6 +103,16 @@ func (m *UiModel) SetCurrentPath(path string) tea.Cmd {
 	return func() tea.Msg {
 		return ChangeCurrentPathMsg{
 			CurrentPath: m.currentPath,
+		}
+	}
+}
+
+func (m *UiModel) SetCurrentFile(file string) tea.Cmd {
+	m.currentFile = file
+
+	return func() tea.Msg {
+		return ChangeCurrentFileMsg{
+			CurrentFile: m.currentFile,
 		}
 	}
 }
